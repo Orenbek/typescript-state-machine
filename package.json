@@ -1,0 +1,14 @@
+{
+  "name": "typescript-state-machine",
+  "version": "1.0.0",
+  "description": "well typed state machine library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "state-machine"
+  ],
+  "author": "Orenbek",
+  "license": "ISC"
+}
