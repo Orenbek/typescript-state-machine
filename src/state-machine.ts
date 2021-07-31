@@ -5,8 +5,9 @@ interface StateMachineParams<TTransitions extends readonly Transition<string, st
   readonly init?: string;
   readonly transitions: readonly [...TTransitions];
   readonly data?: Data;
-  readonly methods?: Partial<TransitionLifeCycel<TTransitions[number]["name"], TTransitions>> &
-  Partial<StateLifeCycel<TTransitions[number]["from"] | TTransitions[number]["to"], TTransitions>> & Partial<GeneralLifeCycle<TTransitions>>
+  readonly methods?: Partial<GeneralLifeCycle<TTransitions>> &
+  Partial<TransitionLifeCycel<TTransitions>> &
+  Partial<StateLifeCycel<TTransitions>>
 }
 
 class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {

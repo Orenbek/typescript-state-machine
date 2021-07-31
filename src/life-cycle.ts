@@ -10,24 +10,30 @@ export interface GeneralLifeCycle<TTransitions extends readonly Transition<strin
   onAfterTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // fired after any transition
 }
 
-export type TransitionLifeCycel<ITransition extends string, TTransitions extends readonly Transition<string, string>[]> = {
-  [_ in never as ToCamelCase<`onBefore-${ITransition}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void>; // fired before a specific TRANSITION begins
+export type TransitionLifeCycel<TTransitions extends readonly Transition<string, string>[]> = {
+  [K in TTransitions[number]["name"]as ToCamelCase<`onBefore-${K & string}`>]:
+  (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void>; // fired before a specific TRANSITION begins
 }
   & {
-    [_ in never as ToCamelCase<`onAfter-${ITransition}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // fired after a specific TRANSITION completes
+    [K in TTransitions[number]["name"]as ToCamelCase<`onAfter-${K & string}`>]:
+    (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // fired after a specific TRANSITION completes
   }
   & {
-    [_ in never as ToCamelCase<`on-${ITransition}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void;// convenience shorthand for onAfter<TRANSITION>
+    [K in TTransitions[number]["name"]as ToCamelCase<`on-${K & string}`>]:
+    (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void;// convenience shorthand for onAfter<TRANSITION>
   }
 
-export type StateLifeCycel<State extends string, TTransitions extends readonly Transition<string, string>[]> = {
-  [_ in never as ToCamelCase<`onLeave-${State}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void>; // fired when leaving a specific STATE
+export type StateLifeCycel<TTransitions extends readonly Transition<string, string>[]> = {
+  [K in TTransitions[number]["from"] | TTransitions[number]["to"]as ToCamelCase<`onLeave-${K}`>]:
+  (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void>; // fired when leaving a specific STATE
 }
   & {
-    [_ in never as ToCamelCase<`onEnter-${State}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // fired when entering a specific STATE
+    [K in TTransitions[number]["from"] | TTransitions[number]["to"]as ToCamelCase<`onEnter-${K}`>]:
+    (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // fired when entering a specific STATE
   }
   & {
-    [_ in never as ToCamelCase<`on-${State}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // convenience shorthand for onEnter<STATE>
+    [K in TTransitions[number]["from"] | TTransitions[number]["to"]as ToCamelCase<`on-${K}`>]:
+    (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // convenience shorthand for onEnter<STATE>
   }
 
 export type LifeCycleEventPayload<TTransitions extends readonly Transition<string, string>[]> = {
