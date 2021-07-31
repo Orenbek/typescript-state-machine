@@ -5,9 +5,7 @@ interface StateMachineParams<TTransitions extends readonly Transition<string, st
   readonly init?: string;
   readonly transitions: readonly [...TTransitions];
   readonly data?: Data;
-  readonly methods?: Partial<GeneralLifeCycle<TTransitions>> &
-  Partial<TransitionLifeCycel<TTransitions>> &
-  Partial<StateLifeCycel<TTransitions>>
+  readonly methods?: Partial<GeneralLifeCycle<TTransitions> & TransitionLifeCycel<TTransitions> & StateLifeCycel<TTransitions>>
 }
 
 class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
@@ -40,6 +38,7 @@ const instance = new StateMachine({
       return false
     },
     onbeforeHover: (e) => {
+      // 这里的e为any 但到了typescript4.4就不会有这个问题了
       return false;
     },
     onMelt: (e) => {
