@@ -10,5 +10,8 @@
     "state-machine"
   ],
   "author": "Orenbek",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.4.0-beta"
+  }
 }
