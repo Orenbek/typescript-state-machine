@@ -36,6 +36,11 @@ export type StateLifeCycel<TTransitions extends readonly Transition<string, stri
     (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void; // convenience shorthand for onEnter<STATE>
   }
 
+export interface ExtraTransitionLifeCycel<TTransitions extends readonly Transition<string, string>[]> {
+  onInvalidTransition: (event: LifeCycleEventPayload<TTransitions>) => void;
+  onPendingTransition: (event: LifeCycleEventPayload<TTransitions>) => void;
+}
+
 export type LifeCycleEventPayload<TTransitions extends readonly Transition<string, string>[]> = {
   event: ToCamelCase<`on-${TTransitions[number]["name"]}`>; // 不知道这里写的对不对
   from: TTransitions[number]["from"];
