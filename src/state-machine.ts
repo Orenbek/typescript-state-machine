@@ -1,5 +1,8 @@
 import { Transition, TransitionMethods } from './transition'
 import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel } from './life-cycle'
+import { Exception } from './utils/exception'
+import camelize from './utils/camelize'
+import { isPromise } from './utils/type-grard'
 
 interface StateMachineParams<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
   readonly init?: string;
@@ -14,12 +17,13 @@ type TransitionTuple<T extends readonly Transition<string, string>[]> = {
 
 class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
   state: TTransitions[number]["from"] | TTransitions[number]["to"] | 'none' = 'none';
-  data: Record<PropertyKey, unknown> | undefined
+  data: StateMachineParams<TTransitions, Data>["data"]
   private pending: boolean = false
   private states: Array<TTransitions[number]["from"] | TTransitions[number]["to"] | 'none'> = ['none'] // states不构成tuple
   private readonly _transition_names: TransitionTuple<TTransitions> = [] as unknown as TransitionTuple<TTransitions>
-  private readonly _transitions: readonly [...TTransitions] = [] as unknown as TTransitions
+  private readonly _transitions: StateMachineParams<TTransitions, Data>["transitions"] = [] as unknown as TTransitions
   // 这里必须得 readonly [...TTransitions] 这么写 不能直接写 TTransitions。原因后续了解一下
+  private readonly _life_cycles: StateMachineParams<TTransitions, Data>["lifecycles"]
 
   // 这里的class的type是假的 这个class的实现对内可以认为没有type 对外有type
   constructor(params: StateMachineParams<TTransitions, Data>) {
@@ -32,6 +36,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     this.states =
       Array.from(new Set(that._transitions.reduce((a, b) => ([...a, b.from, b.to]), ['none']))) as unknown as Array<TTransitions[number]["from"] | TTransitions[number]["to"] | 'none'>
     this.data = params.data
+    this._life_cycles = params.lifecycles
   }
 
   get allStates() {
@@ -53,15 +58,97 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   // function is been removed, cause this function cannot narrow down the type of this.state
 
   can(transition: TTransitions[number]["name"]) {
-    return !this.pending && !!this.seek(transition)
+    return !this.pending && this.transitions.find(name => name === transition)
   }
 
   cannot(transition: TTransitions[number]["name"]) {
     return !this.can(transition)
   }
 
-  private seek(transition: TTransitions[number]["name"]): boolean {
-    return false
+  // fired before any transition
+  private async onBeforeTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+    if (this.cannot(transition)) {
+      throw new Exception('invalid transition!', transition, from, to, this.state)
+    }
+
+    // trigger event add up later
+
+    const res = this._life_cycles?.onBeforeTransition?.({
+      event: camelize.prepended('on', transition),
+      from,
+      to,
+      transition,
+    })
+    if (!res) {
+      return
+    }
+    if (isPromise(res)) {
+      await res
+    }
+  }
+
+  // fired when leaving any state
+  private async onLeaveState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+    // trigger event add up later
+
+    const res = this._life_cycles?.onLeaveState?.({
+      event: camelize.prepended('on', transition),
+      from,
+      to,
+      transition,
+    })
+    if (!res) {
+      return
+    }
+    if (isPromise(res)) {
+      await res
+    }
+  }
+
+  // fired during any transition
+  private async onTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+    // trigger event add up later
+
+    const res = this._life_cycles?.onTransition?.({
+      event: camelize.prepended('on', transition),
+      from,
+      to,
+      transition,
+    })
+    if (!res) {
+      return
+    }
+    if (isPromise(res)) {
+      await res
+    }
+  }
+
+  // fired when entering any state
+  private onEnterState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+    // trigger event add up later
+
+    this._life_cycles?.onEnterState?.({
+      event: camelize.prepended('on', transition),
+      from,
+      to,
+      transition,
+    })
+  }
+
+  // fired after any transition
+  private onAfterTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+    // trigger event add up later
+
+    this._life_cycles?.onAfterTransition?.({
+      event: camelize.prepended('on', transition),
+      from,
+      to,
+      transition,
+    })
+  }
+
+  private doTransition(transition: TTransitions[number]["name"]) {
+    // this._life_cycles
   }
 }
 
@@ -121,3 +208,4 @@ const instance = new StateMachine({
   }
 })
 
+instance.cannot
