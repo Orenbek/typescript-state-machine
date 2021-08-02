@@ -4,7 +4,7 @@
   "description": "well typed state machine library",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx ts-node --project ./tsconfig.json ./src/state-machine.ts"
   },
   "keywords": [
     "state-machine"
@@ -12,6 +12,7 @@
   "author": "Orenbek",
   "license": "ISC",
   "devDependencies": {
+    "ts-node": "^10.1.0",
     "typescript": "^4.4.0-beta"
   }
 }

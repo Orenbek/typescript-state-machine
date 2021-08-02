@@ -3,6 +3,7 @@ import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionL
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
 import { isPromise } from './utils/type-grard'
+import { TRANSITION, onBefore_TRANSITION, onAfter_TRANSITION, onLeave_STATE, onEnter_STATE } from './mixin-functions'
 
 interface StateMachineParams<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
   readonly init?: string;
@@ -37,6 +38,15 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       Array.from(new Set(that._transitions.reduce((a, b) => ([...a, b.from, b.to]), ['none']))) as unknown as Array<TTransitions[number]["from"] | TTransitions[number]["to"] | 'none'>
     this.data = params.data
     this._life_cycles = params.lifecycles
+    this._transition_names.forEach(tranName => {
+      TRANSITION.bind(that)(StateMachineImpl, tranName)
+      onBefore_TRANSITION.bind(that)(StateMachineImpl, tranName)
+      onAfter_TRANSITION.bind(that)(StateMachineImpl, tranName)
+    })
+    this.states.forEach(state => {
+      onLeave_STATE.bind(that)(StateMachineImpl, state)
+      onEnter_STATE.bind(that)(StateMachineImpl, state)
+    })
   }
 
   get allStates() {
@@ -52,7 +62,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     return this._transitions.filter(transit => transit.from === that.state).map(transit => transit.name)
   }
 
-  // is(transition: TTransitions[number]["name"]) {
+  // is<T extends TTransitions[number]["name"]>(transition: T): this is this & { state: T } {
   //   return this.state === transition
   // }
   // function is been removed, cause this function cannot narrow down the type of this.state
@@ -208,4 +218,4 @@ const instance = new StateMachine({
   }
 })
 
-instance.cannot
+instance.state // "none" | "melt" | "freeze"
