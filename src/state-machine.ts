@@ -87,10 +87,41 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     return !this.can(transition)
   }
 
+  private onInvalidTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
+    if (this._life_cycles?.onInvalidTransition) {
+      this._life_cycles.onInvalidTransition?.({
+        event: camelize.prepended('on', transition),
+        from,
+        to,
+        transition,
+      }, ...args)
+    } else {
+      throw new Exception('invalid transition!', transition, from, to, this.state)
+    }
+  }
+
+  private onPendingTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
+    if (this._life_cycles?.onPendingTransition) {
+      this._life_cycles.onPendingTransition?.({
+        event: camelize.prepended('on', transition),
+        from,
+        to,
+        transition,
+      }, ...args)
+    } else {
+      throw new Exception('transition on pending!', transition, from, to, this.state)
+    }
+  }
+
   // fired before any transition
   private async onBeforeTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     if (this.cannot(transition)) {
-      throw new Exception('invalid transition!', transition, from, to, this.state)
+      this.onInvalidTransition(transition, from, to, ...args)
+      return
+    }
+    if (this.pending) {
+      this.onPendingTransition(transition, from, to, ...args)
+      return
     }
     this.pending = true
 
@@ -203,7 +234,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       [that.onTransition.bind(that), [transition, from, to, ...args]],
     ], true)
     if (aborted) {
-      that.pending = true
+      that.pending = false
       return
     }
     // update state
@@ -221,7 +252,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       // @ts-ignore
       [that[camelize.prepended('on', transition)].bind(that), [transition, from, to, ...args]],
     ])
-    that.pending = true
+    that.pending = false
   }
 }
 
@@ -274,7 +305,6 @@ const instance = new StateMachine({
       console.log(args, 'onbeforeHover')
     },
     onFreeze: (...args) => {
-
       console.log(args, 'onMelt')
 
     }
