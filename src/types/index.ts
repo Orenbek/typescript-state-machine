@@ -21,12 +21,12 @@ export type MergeArr<T extends Record<string | number, unknown>[]> = T['length']
   ? T[0]
   : T extends [infer P, infer Q, ...infer U]
   ? P extends Record<string | number, unknown>
-    ? Q extends Record<string | number, unknown>
-      ? U extends Record<string | number, unknown>[]
-        ? MergeArr<[Merge<P, Q>, ...U]>
-        : MergeArr<[Merge<P, Q>]>
-      : never
-    : never
+  ? Q extends Record<string | number, unknown>
+  ? U extends Record<string | number, unknown>[]
+  ? MergeArr<[Merge<P, Q>, ...U]>
+  : MergeArr<[Merge<P, Q>]>
+  : never
+  : never
   : never;
 /*
 ** 这里写得这么麻烦全是因为typescript不够智能 **
@@ -54,3 +54,7 @@ type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extend
     : MergeArr<[Merge<P, Q>]>
   : never;
 */
+
+export function isPromise(input: any): input is Promise<unknown> {
+  return Boolean(input) && typeof input.then === 'function';
+}

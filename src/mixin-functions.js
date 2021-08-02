@@ -1,6 +1,6 @@
 import camelize from './utils/camelize';
 import { Exception } from './utils/exception';
-import { isPromise } from './utils/type-grard';
+import { isPromise } from './types/index';
 
 export function TRANSITION(instance, tranName) {
   if (instance.hasOwnProperty(tranName)) {
