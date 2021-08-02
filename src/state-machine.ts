@@ -16,6 +16,18 @@ type TransitionTuple<T extends readonly Transition<string, string>[]> = {
   [K in keyof T]: T[K] extends Transition<string, string> ? T[K]["name"] : never
 }
 
+async function pipe<T extends [CallableFunction[], any[]]>(inputs: T, abortWhenResFalse: boolean = false) {
+  let abort = false
+  for (let i of inputs) {
+    const res = await i[0](...i[1])
+    if (abortWhenResFalse && !res) {
+      abort = true
+      break
+    }
+  }
+  return abort
+}
+
 class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
   state: TTransitions[number]["from"] | TTransitions[number]["to"] | 'none' = 'none';
   data: StateMachineParams<TTransitions, Data>["data"]
@@ -39,13 +51,13 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     this.data = params.data
     this._life_cycles = params.lifecycles
     this._transition_names.forEach(tranName => {
-      TRANSITION.bind(that)(StateMachineImpl, tranName)
-      onBefore_TRANSITION.bind(that)(StateMachineImpl, tranName)
-      onAfter_TRANSITION.bind(that)(StateMachineImpl, tranName)
+      TRANSITION.bind(that)(that, tranName)
+      onBefore_TRANSITION.bind(that)(that, tranName)
+      onAfter_TRANSITION.bind(that)(that, tranName)
     })
     this.states.forEach(state => {
-      onLeave_STATE.bind(that)(StateMachineImpl, state)
-      onEnter_STATE.bind(that)(StateMachineImpl, state)
+      onLeave_STATE.bind(that)(that, state)
+      onEnter_STATE.bind(that)(that, state)
     })
   }
 
@@ -76,65 +88,72 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired before any transition
-  private async onBeforeTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+  private async onBeforeTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     if (this.cannot(transition)) {
       throw new Exception('invalid transition!', transition, from, to, this.state)
     }
+    this.pending = true
 
     // trigger event add up later
 
-    const res = this._life_cycles?.onBeforeTransition?.({
+    if (!this._life_cycles?.onBeforeTransition) {
+      return true
+    }
+    const res = this._life_cycles.onBeforeTransition?.({
       event: camelize.prepended('on', transition),
       from,
       to,
       transition,
-    })
-    if (!res) {
-      return
-    }
+    }, ...args)
+    // is return false or rejected, then should abort transition
     if (isPromise(res)) {
       await res
     }
+    return res === false ? false : true
   }
 
   // fired when leaving any state
-  private async onLeaveState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+  private async onLeaveState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
+    if (!this._life_cycles?.onLeaveState) {
+      return true
+    }
     const res = this._life_cycles?.onLeaveState?.({
       event: camelize.prepended('on', transition),
       from,
       to,
       transition,
-    })
-    if (!res) {
-      return
-    }
+    }, ...args)
+    // is return false or rejected, then should abort transition
     if (isPromise(res)) {
       await res
     }
+    return res === false ? false : true
   }
 
   // fired during any transition
-  private async onTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+  private async onTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
+    if (!this._life_cycles?.onTransition) {
+      return true
+    }
     const res = this._life_cycles?.onTransition?.({
       event: camelize.prepended('on', transition),
       from,
       to,
       transition,
-    })
-    if (!res) {
-      return
-    }
+    }, ...args)
+    // is return false or rejected, then should abort transition
     if (isPromise(res)) {
       await res
     }
+    return res === false ? false : true
   }
 
   // fired when entering any state
-  private onEnterState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+  private onEnterState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
     this._life_cycles?.onEnterState?.({
@@ -142,11 +161,11 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       from,
       to,
       transition,
-    })
+    }, ...args)
   }
 
   // fired after any transition
-  private onAfterTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"]) {
+  private onAfterTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
     this._life_cycles?.onAfterTransition?.({
@@ -154,11 +173,55 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       from,
       to,
       transition,
-    })
+    }, ...args)
   }
 
-  private doTransition(transition: TTransitions[number]["name"]) {
-    // this._life_cycles
+  private async fireTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
+    const that = this;
+    /** execute order
+     * onBeforeTransition
+     * onBefore<TRANSITION>
+     * onLeaveState
+     * onLeave<STATE>
+     * onTransition
+     * onEnterState
+     * onEnter<STATE>
+     * on<STATE>
+     * onAfterTransition
+     * onAfter<TRANSITION>
+     * on<TRANSITION>
+     */
+    // @ts-ignore
+    const aborted = await pipe([
+      // @ts-ignore
+      [that.onBeforeTransition.bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('onBefore', transition)].bind(that), [transition, from, to, ...args]],
+      [that.onLeaveState.bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('onLeave', from)].bind(that), [transition, from, to, ...args]],
+      [that.onTransition.bind(that), [transition, from, to, ...args]],
+    ], true)
+    if (aborted) {
+      that.pending = true
+      return
+    }
+    // update state
+    this.state = to
+    await pipe([
+      // @ts-ignore
+      [that.onEnterState.bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('onEnter', to)].bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('on', to)].bind(that), [transition, from, to, ...args]],
+      [that.onAfterTransition.bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('onAfter', transition)].bind(that), [transition, from, to, ...args]],
+      // @ts-ignore
+      [that[camelize.prepended('on', transition)].bind(that), [transition, from, to, ...args]],
+    ])
+    that.pending = true
   }
 }
 
@@ -199,23 +262,25 @@ export interface StateMachineConstructor {
 const StateMachine = StateMachineImpl as StateMachineConstructor
 
 const instance = new StateMachine({
+  init: 'melt',
   transitions: [{ name: "hover", from: "melt", to: "freeze" }, { name: "off", from: "freeze", to: "melt" }] as const,
   data: {
     color: 'ssss',
     colors: [{ name: 'joe' }, { age: 'xx' }, 32] as const
   },
   lifecycles: {
-    onTransition: (e, a, b) => {
-      return false
-    },
-    onbeforeHover: (e) => {
+    onBeforeHover: (...args) => {
       // 这里的e为any 但到了typescript4.4就不会有这个问题了
-      return false;
+      console.log(args, 'onbeforeHover')
     },
-    onMelt: (e) => {
+    onFreeze: (...args) => {
+
+      console.log(args, 'onMelt')
 
     }
   }
 })
 
 instance.state // "none" | "melt" | "freeze"
+
+instance.hover()
