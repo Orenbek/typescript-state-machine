@@ -1,4 +1,4 @@
-# Javascript State Machine
+# Typescript State Machine
 
 A library for finite state machines.
 
