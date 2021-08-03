@@ -72,7 +72,7 @@ into the transition method
 ```typescript
 const fsm = new StateMachine({
   transitions: [{ name: 'step', from: 'A', to: 'B' }],
-  methods: {
+  lifecycles: {
     onTransition: function (lifecycle, arg1, arg2) {
       console.log(lifecycle.transition); // 'step'
       console.log(lifecycle.from); // 'A'
@@ -98,7 +98,7 @@ var fsm = new StateMachine({
     { name: 'do_with_underscore', from: 'has_underscore', to: 'alreadyCamelized' },
     { name: 'doAlreadyCamelized', from: 'alreadyCamelize', to: 'has-dash' },
   ],
-  methods: {
+  lifecycles: {
     onBeforeDoWithDash: function () {
       /* ... */
     },
@@ -155,7 +155,9 @@ To recap, the lifecycle of a transition occurs in the following order:
 - `onAfter<TRANSITION>` - fired after a specific TRANSITION
 - `on<TRANSITION>` - convenience shorthand for `onAfter<TRANSITION>`
 
-# Cancelling a Transition
+# Asynchronous Transitions & Cancelling a Transition
+
+only following lifecycle functions support for asynchronous transition.
 
 Any observer can cancel a transition by explicitly returning `false` during any of the following
 lifecycle events:
