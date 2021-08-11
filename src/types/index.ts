@@ -57,7 +57,7 @@ type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extend
 
 export type Flatten<T> = T extends []
   ? []
-  : T extends [infer First, ...infer Rest]
+  : T extends readonly [infer First, ...infer Rest]
   ? [...Flatten<First>, ...Flatten<Rest>]
   : [T]
 
