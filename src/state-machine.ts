@@ -2,7 +2,7 @@ import { Transition, TransitionMethods } from './transition'
 import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
-import { isPromise } from './types/index'
+import { isPromise, Flatten } from './types/index'
 import { TRANSITION, onBefore_TRANSITION, onAfter_TRANSITION, onLeave_STATE, onEnter_STATE } from './mixin-functions'
 
 interface StateMachineParams<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
@@ -256,6 +256,12 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 }
 
+type TupleTransitionsFrom2Tuple<T extends readonly Transition<string, string>[]> = {
+  [K in keyof T]: T[K] extends Transition<string, string> ? T[K]["from"] : never
+}
+
+type StateUnion<TTransitions extends readonly Transition<string, string>[]> = Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"] | "none"
+
 
 export interface StateMachineConstructor {
   new <TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>>
@@ -266,11 +272,11 @@ export interface StateMachineConstructor {
       /**
        * current state property
        */
-      state: TTransitions[number]["from"] | TTransitions[number]["to"] | "none"
+      state: StateUnion<TTransitions>
       /**
        * get list of all possible states
        */
-      readonly allStates: Array<TTransitions[number]["from"] | TTransitions[number]["to"]>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+      readonly allStates: Array<Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"]>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
       /**
        * get list of all possible transitions
        */
@@ -294,7 +300,7 @@ const StateMachine = StateMachineImpl as StateMachineConstructor
 
 const instance = new StateMachine({
   init: 'melt',
-  transitions: [{ name: "hover", from: "melt", to: "freeze" }, { name: "off", from: "freeze", to: "melt" }] as const,
+  transitions: [{ name: "hover", from: ["melt", 'bbb'] as const, to: "freeze" }, { name: "off", from: "freeze", to: "melt" }] as const,
   data: {
     color: 'ssss',
     colors: [{ name: 'joe' }, { age: 'xx' }, 32] as const
@@ -307,10 +313,12 @@ const instance = new StateMachine({
     onFreeze: (...args) => {
       console.log(args, 'onMelt')
 
-    }
+    },
   }
 })
 
 instance.state // "none" | "melt" | "freeze"
+type MM = StateUnion<[{ name: "hover", from: ["melt", 'bbb'], to: "freeze" }, { name: "off", from: "freeze", to: "melt" }]>
+instance.state === 'freeze'
 
 instance.hover()

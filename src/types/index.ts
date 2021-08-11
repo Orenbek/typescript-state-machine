@@ -55,6 +55,12 @@ type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extend
   : never;
 */
 
+export type Flatten<T> = T extends []
+  ? []
+  : T extends [infer First, ...infer Rest]
+  ? [...Flatten<First>, ...Flatten<Rest>]
+  : [T]
+
 export function isPromise(input: any): input is Promise<unknown> {
   return Boolean(input) && typeof input.then === 'function';
 }

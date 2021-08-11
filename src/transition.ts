@@ -1,6 +1,6 @@
 export interface Transition<TName extends string, State extends string> {
   readonly name: TName;
-  readonly from: State;
+  readonly from: State | readonly State[];
   readonly to: State;
 }
 
