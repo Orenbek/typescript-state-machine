@@ -6,7 +6,7 @@ import { isPromise, Flatten } from './types/index'
 import { TRANSITION, onBefore_TRANSITION, onAfter_TRANSITION, onLeave_STATE, onEnter_STATE } from './mixin-functions'
 
 interface StateMachineParams<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
-  readonly init?: string;
+  readonly init?: StateUnion<TTransitions>;
   readonly transitions: readonly [...TTransitions];
   readonly data?: Data;
   readonly lifecycles?: Partial<GeneralLifeCycle<TTransitions> & TransitionLifeCycel<TTransitions> & StateLifeCycel<TTransitions> & ExtraTransitionLifeCycel<TTransitions>>
@@ -260,7 +260,7 @@ type TupleTransitionsFrom2Tuple<T extends readonly Transition<string, string>[]>
   [K in keyof T]: T[K] extends Transition<string, string> ? T[K]["from"] : never
 }
 
-type StateUnion<TTransitions extends readonly Transition<string, string>[]> = Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"] | "none"
+type StateUnion<TTransitions extends readonly Transition<string, string>[]> = Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"]
 
 
 export interface StateMachineConstructor {
@@ -272,11 +272,11 @@ export interface StateMachineConstructor {
       /**
        * current state property
        */
-      state: StateUnion<TTransitions>
+      state: StateUnion<TTransitions> | "none"
       /**
        * get list of all possible states
        */
-      readonly allStates: Array<Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"]>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+      readonly allStates: Array<Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
       /**
        * get list of all possible transitions
        */
@@ -318,7 +318,5 @@ const instance = new StateMachine({
 })
 
 instance.state // "none" | "melt" | "freeze"
-type MM = StateUnion<[{ name: "hover", from: ["melt", 'bbb'], to: "freeze" }, { name: "off", from: "freeze", to: "melt" }]>
-instance.state === 'freeze'
-
+instance.allStates
 instance.hover()
