@@ -33,6 +33,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   data: StateMachineParams<TTransitions, Data>["data"]
   private pending: boolean = false
   private states: Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'> = ['none'] // states不构成tuple
+  // represent all the transition names
   private readonly _transition_names: TransitionTuple<TTransitions> = [] as unknown as TransitionTuple<TTransitions>
   private readonly _transitions: StateMachineParams<TTransitions, Data>["transitions"] = [] as unknown as TTransitions
   // 这里必须得 readonly [...TTransitions] 这么写 不能直接写 TTransitions。原因后续了解一下
@@ -45,7 +46,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       this.state = params.init
     }
     this._transitions = [...params.transitions]
-    this._transition_names = this._transitions.map(transit => transit.name) as unknown as TransitionTuple<TTransitions>
+    // De-duplication
+    this._transition_names = Array.from(new Set(this._transitions.map(transit => transit.name))) as unknown as TransitionTuple<TTransitions>
     this.states =
       Array.from(new Set(that._transitions.reduce((a, b) => {
         if (Array.isArray(b.from)) {
@@ -301,22 +303,30 @@ export interface StateMachineConstructor {
 const StateMachine = StateMachineImpl as StateMachineConstructor
 
 const instance = new StateMachine({
-  init: 'melt',
-  transitions: [{ name: "hover", from: ["melt", 'bbb'] as const, to: "freeze" }, { name: "off", from: "freeze", to: "melt" }] as const,
+  init: 'A',
+  transitions: [
+    { name: 'step', from: 'A', to: 'B' },
+    { name: 'step', from: 'B', to: 'C' },
+    { name: 'step', from: 'C', to: 'D' }
+  ] as const,
   data: {
     color: 'ssss',
     colors: [{ name: 'joe' }, { age: 'xx' }, 32] as const
   },
   lifecycles: {
-    onBeforeHover: (...args) => {
+    onStep: (...args) => {
       // 这里的e为any 但到了typescript4.4就不会有这个问题了
-      console.log(args, 'onbeforeHover')
+      console.log(args, 'onStep', instance.state)
     },
-    onBbb: (props) => {
+    onA: (...args) => {
+      console.log(args, 'onA')
     }
   }
 })
 
 instance.state // "none" | "melt" | "freeze"
 instance.allStates
-instance.hover()
+instance.step()
+setTimeout(() => {
+  instance.step()
+}, 100);
