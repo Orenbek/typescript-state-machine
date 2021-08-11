@@ -29,10 +29,10 @@ async function pipe<T extends [CallableFunction[], any[]]>(inputs: T, abortWhenR
 }
 
 class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
-  state: TTransitions[number]["from"] | TTransitions[number]["to"] | 'none' = 'none';
+  state: StateUnion<TTransitions> | "none" = 'none';
   data: StateMachineParams<TTransitions, Data>["data"]
   private pending: boolean = false
-  private states: Array<TTransitions[number]["from"] | TTransitions[number]["to"] | 'none'> = ['none'] // states不构成tuple
+  private states: Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'> = ['none'] // states不构成tuple
   private readonly _transition_names: TransitionTuple<TTransitions> = [] as unknown as TransitionTuple<TTransitions>
   private readonly _transitions: StateMachineParams<TTransitions, Data>["transitions"] = [] as unknown as TTransitions
   // 这里必须得 readonly [...TTransitions] 这么写 不能直接写 TTransitions。原因后续了解一下
@@ -47,7 +47,13 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     this._transitions = [...params.transitions]
     this._transition_names = this._transitions.map(transit => transit.name) as unknown as TransitionTuple<TTransitions>
     this.states =
-      Array.from(new Set(that._transitions.reduce((a, b) => ([...a, b.from, b.to]), ['none']))) as unknown as Array<TTransitions[number]["from"] | TTransitions[number]["to"] | 'none'>
+      Array.from(new Set(that._transitions.reduce((a, b) => {
+        if (Array.isArray(b.from)) {
+          return [...a, ...b.from, b.to]
+        } else {
+          return [...a, b.from, b.to]
+        }
+      }, ['none']))) as unknown as Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'>
     this.data = params.data
     this._life_cycles = params.lifecycles
     this._transition_names.forEach(tranName => {
@@ -71,7 +77,9 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
 
   get transitions() {
     const that = this
-    return this._transitions.filter(transit => transit.from === that.state).map(transit => transit.name)
+    return this._transitions
+      .filter(transit => transit.from === that.state || (Array.isArray(transit.from) && transit.from.includes(that.state as string)))
+      .map(transit => transit.name)
   }
 
   // is<T extends TTransitions[number]["name"]>(transition: T): this is this & { state: T } {
@@ -80,7 +88,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   // function is been removed, cause this function cannot narrow down the type of this.state
 
   can(transition: TTransitions[number]["name"]) {
-    return !this.pending && this.transitions.find(name => name === transition)
+    return !this.pending && Boolean(this.transitions.find(name => name === transition))
   }
 
   cannot(transition: TTransitions[number]["name"]) {
@@ -96,7 +104,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
         transition,
       }, ...args)
     } else {
-      throw new Exception('invalid transition!', transition, from, to, this.state)
+      throw new Exception('invalid transition!', transition, from, to, this.state as string)
     }
   }
 
@@ -109,7 +117,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
         transition,
       }, ...args)
     } else {
-      throw new Exception('transition on pending!', transition, from, to, this.state)
+      throw new Exception('transition on pending!', transition, from, to, this.state as string)
     }
   }
 
@@ -184,10 +192,10 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired when entering any state
-  private onEnterState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
+  private async onEnterState(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
-    this._life_cycles?.onEnterState?.({
+    await this._life_cycles?.onEnterState?.({
       event: camelize.prepended('on', transition),
       from,
       to,
@@ -196,10 +204,10 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired after any transition
-  private onAfterTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
+  private async onAfterTransition(transition: TTransitions[number]["name"], from: TTransitions[number]["from"], to: TTransitions[number]["to"], ...args: unknown[]) {
     // trigger event add up later
 
-    this._life_cycles?.onAfterTransition?.({
+    await this._life_cycles?.onAfterTransition?.({
       event: camelize.prepended('on', transition),
       from,
       to,
@@ -230,7 +238,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
       [that[camelize.prepended('onBefore', transition)].bind(that), [transition, from, to, ...args]],
       [that.onLeaveState.bind(that), [transition, from, to, ...args]],
       // @ts-ignore
-      [that[camelize.prepended('onLeave', from)].bind(that), [transition, from, to, ...args]],
+      [that[camelize.prepended('onLeave', this.state)].bind(that), [transition, from, to, ...args]],
+      // because from can be a string array, so use this.state instead of from
       [that.onTransition.bind(that), [transition, from, to, ...args]],
     ], true)
     if (aborted) {

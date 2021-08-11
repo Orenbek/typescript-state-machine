@@ -57,7 +57,7 @@ export function onAfter_TRANSITION(instance, tranName) {
     value: async function (transition, from, to, ...args) {
       // trigger event add up later
 
-      this._life_cycles?.[funcName1]?.(
+      await this._life_cycles?.[funcName1]?.(
         {
           event: camelize.prepended('on', transition),
           from,
@@ -72,7 +72,7 @@ export function onAfter_TRANSITION(instance, tranName) {
     value: async function (transition, from, to, ...args) {
       // trigger event add up later
 
-      this._life_cycles?.[funcName2]?.(
+      await this._life_cycles?.[funcName2]?.(
         {
           event: camelize.prepended('on', transition),
           from,
@@ -127,7 +127,7 @@ export function onEnter_STATE(instance, stateName) {
     value: async function (transition, from, to, ...args) {
       // trigger event add up later
 
-      this._life_cycles?.[funcName1]?.(
+      await this._life_cycles?.[funcName1]?.(
         {
           event: camelize.prepended('on', transition),
           from,
@@ -143,7 +143,7 @@ export function onEnter_STATE(instance, stateName) {
     value: async function (transition, from, to, ...args) {
       // trigger event add up later
 
-      this._life_cycles?.[funcName2]?.(
+      await this._life_cycles?.[funcName2]?.(
         {
           event: camelize.prepended('on', transition),
           from,
