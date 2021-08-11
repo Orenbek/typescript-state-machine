@@ -1,4 +1,4 @@
-import { Transition, TransitionMethods } from './transition'
+import { Transition, TransitionMethods, TransitionsFromTuple, StateUnion } from './transition'
 import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
@@ -256,13 +256,6 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 }
 
-type TupleTransitionsFrom2Tuple<T extends readonly Transition<string, string>[]> = {
-  [K in keyof T]: T[K] extends Transition<string, string> ? T[K]["from"] : never
-}
-
-type StateUnion<TTransitions extends readonly Transition<string, string>[]> = Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"]
-
-
 export interface StateMachineConstructor {
   new <TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>>
     (params: StateMachineParams<TTransitions, Data>):
@@ -276,7 +269,7 @@ export interface StateMachineConstructor {
       /**
        * get list of all possible states
        */
-      readonly allStates: Array<Flatten<TupleTransitionsFrom2Tuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+      readonly allStates: Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]["to"] | 'none'>  // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
       /**
        * get list of all possible transitions
        */
@@ -310,10 +303,8 @@ const instance = new StateMachine({
       // 这里的e为any 但到了typescript4.4就不会有这个问题了
       console.log(args, 'onbeforeHover')
     },
-    onFreeze: (...args) => {
-      console.log(args, 'onMelt')
-
-    },
+    onBbb: (props) => {
+    }
   }
 })
 
