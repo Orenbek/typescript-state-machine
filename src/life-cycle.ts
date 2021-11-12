@@ -22,7 +22,10 @@ export type TransitionLifeCycel<TTransitions extends readonly Transition<string,
     ...args: unknown[]
   ) => void // fired after a specific TRANSITION completes
 } & {
-  [K in TTransitions[number]['name'] as ToCamelCase<`on-${K & string}`>]: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void // convenience shorthand for onAfter<TRANSITION>
+  [K in TTransitions[number]['name'] as ToCamelCase<`on-${K & string}`>]: (
+    event: LifeCycleEventPayload<TTransitions>,
+    ...args: unknown[]
+  ) => void // convenience shorthand for onAfter<TRANSITION>
 }
 
 export type StateLifeCycel<TTransitions extends readonly Transition<string, string>[]> = {

@@ -10,7 +10,10 @@ interface StateMachineParams<TTransitions extends readonly Transition<string, st
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
   readonly lifecycles?: Partial<
-    GeneralLifeCycle<TTransitions> & TransitionLifeCycel<TTransitions> & StateLifeCycel<TTransitions> & ExtraTransitionLifeCycel<TTransitions>
+    GeneralLifeCycle<TTransitions> &
+      TransitionLifeCycel<TTransitions> &
+      StateLifeCycel<TTransitions> &
+      ExtraTransitionLifeCycel<TTransitions>
   >
 }
 
