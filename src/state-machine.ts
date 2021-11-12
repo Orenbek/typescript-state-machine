@@ -16,7 +16,7 @@ type TransitionTuple<T extends readonly Transition<string, string>[]> = {
   [K in keyof T]: T[K] extends Transition<string, string> ? T[K]["name"] : never
 }
 
-async function pipe<T extends [CallableFunction[], any[]]>(inputs: T, abortWhenResFalse: boolean = false) {
+async function pipe<T extends (...params: any) => any>(inputs: [T, [...Parameters<T>]][], abortWhenResFalse: boolean = false) {
   let abort = false
   for (let i of inputs) {
     const res = await i[0](...i[1])
@@ -140,7 +140,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     if (!this._life_cycles?.onBeforeTransition) {
       return true
     }
-    const res = this._life_cycles.onBeforeTransition?.({
+    let res = this._life_cycles.onBeforeTransition?.({
       event: camelize.prepended('on', transition),
       from,
       to,
@@ -148,9 +148,9 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     }, ...args)
     // is return false or rejected, then should abort transition
     if (isPromise(res)) {
-      await res
+      res = await res
     }
-    return res === false ? false : true
+    return res !== false;
   }
 
   // fired when leaving any state
@@ -160,7 +160,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     if (!this._life_cycles?.onLeaveState) {
       return true
     }
-    const res = this._life_cycles?.onLeaveState?.({
+    let res = this._life_cycles?.onLeaveState?.({
       event: camelize.prepended('on', transition),
       from,
       to,
@@ -168,9 +168,9 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     }, ...args)
     // is return false or rejected, then should abort transition
     if (isPromise(res)) {
-      await res
+      res = await res
     }
-    return res === false ? false : true
+    return res !== false;
   }
 
   // fired during any transition
@@ -180,7 +180,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     if (!this._life_cycles?.onTransition) {
       return true
     }
-    const res = this._life_cycles?.onTransition?.({
+    let res = this._life_cycles?.onTransition?.({
       event: camelize.prepended('on', transition),
       from,
       to,
@@ -188,9 +188,9 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     }, ...args)
     // is return false or rejected, then should abort transition
     if (isPromise(res)) {
-      await res
+      res = await res
     }
-    return res === false ? false : true
+    return res !== false;
   }
 
   // fired when entering any state

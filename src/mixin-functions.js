@@ -1,24 +1,26 @@
-import camelize from './utils/camelize';
-import { Exception } from './utils/exception';
-import { isPromise } from './types/index';
+import camelize from "./utils/camelize";
+import { Exception } from "./utils/exception";
+import { isPromise } from "./types/index";
 
 export function TRANSITION(instance, tranName) {
   if (instance.hasOwnProperty(tranName)) {
-    throw new Error('transition name duplicated!');
+    throw new Error("transition name duplicated!");
   }
 
   Object.defineProperty(instance, tranName, {
     value: async function (...args) {
-      const transition = this._transitions.find(tran => tran.name === tranName);
+      const transition = this._transitions.find(
+        (tran) => tran.name === tranName
+      );
       this.fireTransition(tranName, transition.from, transition.to, ...args);
     },
   });
 }
 
 export function onBefore_TRANSITION(instance, tranName) {
-  const funcName = camelize.prepended('onBefore', tranName);
+  const funcName = camelize.prepended("onBefore", tranName);
   if (instance.hasOwnProperty(funcName)) {
-    throw new Error('transition name duplicated!');
+    throw new Error("transition name duplicated!");
   }
 
   Object.defineProperty(instance, funcName, {
@@ -28,9 +30,9 @@ export function onBefore_TRANSITION(instance, tranName) {
       if (!this._life_cycles?.[funcName]) {
         return true;
       }
-      const res = this._life_cycles[funcName]?.(
+      let res = this._life_cycles[funcName]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
@@ -39,18 +41,21 @@ export function onBefore_TRANSITION(instance, tranName) {
       );
       // is return false or rejected, then should abort transition
       if (isPromise(res)) {
-        await res;
+        res = await res;
       }
-      return res === false ? false : true;
+      return res !== false;
     },
   });
 }
 
 export function onAfter_TRANSITION(instance, tranName) {
-  const funcName1 = camelize.prepended('onAfter', tranName);
-  const funcName2 = camelize.prepended('on', tranName);
-  if (instance.hasOwnProperty(funcName1) || instance.hasOwnProperty(funcName2)) {
-    throw new Error('transition name duplicated!');
+  const funcName1 = camelize.prepended("onAfter", tranName);
+  const funcName2 = camelize.prepended("on", tranName);
+  if (
+    instance.hasOwnProperty(funcName1) ||
+    instance.hasOwnProperty(funcName2)
+  ) {
+    throw new Error("transition name duplicated!");
   }
 
   Object.defineProperty(instance, funcName1, {
@@ -59,7 +64,7 @@ export function onAfter_TRANSITION(instance, tranName) {
 
       await this._life_cycles?.[funcName1]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
@@ -74,7 +79,7 @@ export function onAfter_TRANSITION(instance, tranName) {
 
       await this._life_cycles?.[funcName2]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
@@ -86,9 +91,9 @@ export function onAfter_TRANSITION(instance, tranName) {
 }
 
 export function onLeave_STATE(instance, stateName) {
-  const funcName = camelize.prepended('onLeave', stateName);
+  const funcName = camelize.prepended("onLeave", stateName);
   if (instance.hasOwnProperty(funcName)) {
-    throw new Error('state name duplicated!');
+    throw new Error("state name duplicated!");
   }
 
   Object.defineProperty(instance, funcName, {
@@ -98,9 +103,9 @@ export function onLeave_STATE(instance, stateName) {
       if (!this._life_cycles?.[funcName]) {
         return true;
       }
-      const res = this._life_cycles?.[funcName]?.(
+      let res = this._life_cycles?.[funcName]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
@@ -109,18 +114,21 @@ export function onLeave_STATE(instance, stateName) {
       );
       // is return false or rejected, then should abort transition
       if (isPromise(res)) {
-        await res;
+        res = await res;
       }
-      return res === false ? false : true;
+      return res !== false;
     },
   });
 }
 
 export function onEnter_STATE(instance, stateName) {
-  const funcName1 = camelize.prepended('onEnter', stateName);
-  const funcName2 = camelize.prepended('on', stateName);
-  if (instance.hasOwnProperty(funcName1) || instance.hasOwnProperty(funcName2)) {
-    throw new Error('state name duplicated!');
+  const funcName1 = camelize.prepended("onEnter", stateName);
+  const funcName2 = camelize.prepended("on", stateName);
+  if (
+    instance.hasOwnProperty(funcName1) ||
+    instance.hasOwnProperty(funcName2)
+  ) {
+    throw new Error("state name duplicated!");
   }
 
   Object.defineProperty(instance, funcName1, {
@@ -129,7 +137,7 @@ export function onEnter_STATE(instance, stateName) {
 
       await this._life_cycles?.[funcName1]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
@@ -145,7 +153,7 @@ export function onEnter_STATE(instance, stateName) {
 
       await this._life_cycles?.[funcName2]?.(
         {
-          event: camelize.prepended('on', transition),
+          event: camelize.prepended("on", transition),
           from,
           to,
           transition,
