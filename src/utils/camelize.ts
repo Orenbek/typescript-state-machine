@@ -1,6 +1,4 @@
-//-------------------------------------------------------------------------------------------------
-type ToCamel<S extends string> =
-  S extends `${infer Head}_${infer Tail}`
+type ToCamel<S extends string> = S extends `${infer Head}_${infer Tail}`
   ? `${Lowercase<Head>}${Capitalize<ToCamel<Tail>>}`
   : S extends `${infer Head}-${infer Tail}`
   ? `${Lowercase<Head>}${Capitalize<ToCamel<Tail>>}`
@@ -16,7 +14,7 @@ export type ToCamelCase<S extends string | number | bigint> = Uncapitalize<ToCam
   @param label - String to convert to camel case.
 
   @example
-  ```
+  ```ts
   import camelize from '../util/camelize'
 
   camelize('WORD');
@@ -36,21 +34,24 @@ export type ToCamelCase<S extends string | number | bigint> = Uncapitalize<ToCam
   ```
   */
 export default function camelize<T extends string>(label: T): ToCamelCase<T> {
-
-  let result = '';
+  let result = ''
   const regx = /([a-z1-9])([A-Z]{1,})(?=[a-z1-9]*)/g
-  const words = label.replace(regx, (...args) => `${args[1]}-${args[2].toLowerCase()}`).split(/[_-]/).filter(Boolean)
+  const words = label
+    .replace(regx, (...args) => `${args[1]}-${args[2].toLowerCase()}`)
+    .split(/[_-]/)
+    .filter(Boolean)
   if (words.length === 0) {
     return '' as ToCamelCase<T>
   }
-  result = words[0].toLowerCase();
+  result = words[0].toLowerCase()
   // single word with first character already lowercase, return untouched
   if (words.length === 1) {
     return result as ToCamelCase<T>
   }
 
+  // eslint-disable-next-line no-plusplus
   for (let n = 1; n < words.length; n++) {
-    result = result + words[n].charAt(0).toUpperCase() + words[n].substring(1).toLowerCase();
+    result = result + words[n].charAt(0).toUpperCase() + words[n].substring(1).toLowerCase()
   }
 
   return result as ToCamelCase<T>
@@ -58,8 +59,6 @@ export default function camelize<T extends string>(label: T): ToCamelCase<T> {
 //-------------------------------------------------------------------------------------------------
 
 camelize.prepended = function <T extends string, P extends string>(prepend: T, label: P): ToCamelCase<`${T}-${P}`> {
-  const camelLabel = camelize(label);
-  return camelize(prepend) + camelLabel[0].toUpperCase() + camelLabel.substring(1) as ToCamelCase<`${T}-${P}`>;
+  const camelLabel = camelize(label)
+  return (camelize(prepend) + camelLabel[0].toUpperCase() + camelLabel.substring(1)) as ToCamelCase<`${T}-${P}`>
 }
-
-//-------------------------------------------------------------------------------------------------

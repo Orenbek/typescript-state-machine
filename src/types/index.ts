@@ -1,33 +1,34 @@
 export type Merge<F extends Record<string | number, unknown>, S extends Record<string | number, unknown>> = {
-  [P in keyof F | keyof S]: P extends keyof Omit<F, keyof S> ? F[P] : P extends keyof S ? S[P] : never;
-};
+  [P in keyof F | keyof S]: P extends keyof Omit<F, keyof S> ? F[P] : P extends keyof S ? S[P] : never
+}
 
 // string operators
-export type Concat<S1 extends string, S2 extends string> = `${S1}${S2}`;
-export type ToString<T extends string | number | boolean | bigint> = `${T}`;
+export type Concat<S1 extends string, S2 extends string> = `${S1}${S2}`
+export type ToString<T extends string | number | boolean | bigint> = `${T}`
 
 // tuple operators
-export type FirstElem<T extends readonly unknown[]> = T[0];
-export type LastElem<T extends readonly unknown[]> = T extends readonly [...infer _, infer U] ? U : undefined;
+export type FirstElem<T extends readonly unknown[]> = T[0]
+export type LastElem<T extends readonly unknown[]> = T extends readonly [...infer _, infer U] ? U : undefined
 
-export type RemoveFirst<T extends readonly unknown[]> = T extends readonly [unknown, ...infer U] ? U : [...T];
+export type RemoveFirst<T extends readonly unknown[]> = T extends readonly [unknown, ...infer U] ? U : [...T]
 // [unknown, ...infer U] 可以替换为 [any, ...infer U]
-export type RomoveLast<T extends readonly unknown[]> = T extends readonly [...infer U, unknown] ? U : [...T];
+export type RomoveLast<T extends readonly unknown[]> = T extends readonly [...infer U, unknown] ? U : [...T]
 // [...infer U, unknown] 可以替换为 [...infer U, any]
 
 export type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extends 0
-  ? {}
+  ? Record<string, never>
   : T['length'] extends 1
   ? T[0]
   : T extends [infer P, infer Q, ...infer U]
   ? P extends Record<string | number, unknown>
-  ? Q extends Record<string | number, unknown>
-  ? U extends Record<string | number, unknown>[]
-  ? MergeArr<[Merge<P, Q>, ...U]>
-  : MergeArr<[Merge<P, Q>]>
+    ? Q extends Record<string | number, unknown>
+      ? U extends Record<string | number, unknown>[]
+        ? MergeArr<[Merge<P, Q>, ...U]>
+        : MergeArr<[Merge<P, Q>]>
+      : never
+    : never
   : never
-  : never
-  : never;
+
 /*
 ** 这里写得这么麻烦全是因为typescript不够智能 **
 按理来说 下面的代码已经足够了，但typescirpt报错
@@ -55,12 +56,8 @@ type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extend
   : never;
 */
 
-export type Flatten<T> = T extends []
-  ? []
-  : T extends readonly [infer First, ...infer Rest]
-  ? [...Flatten<First>, ...Flatten<Rest>]
-  : [T]
+export type Flatten<T> = T extends [] ? [] : T extends readonly [infer First, ...infer Rest] ? [...Flatten<First>, ...Flatten<Rest>] : [T]
 
 export function isPromise(input: any): input is Promise<unknown> {
-  return Boolean(input) && typeof input.then === 'function';
+  return Boolean(input) && typeof input.then === 'function'
 }
