@@ -95,8 +95,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   get possibleTransitions() {
-    return this.transitions.filter
-      .bind(this)((transit) => transit.from === this.state || (Array.isArray(transit.from) && transit.from.includes(this.state as string)))
+    return this.transitions
+      .filter((transit) => transit.from === this.state || (Array.isArray(transit.from) && transit.from.includes(this.state as string)))
       .map((transit) => transit.name)
   }
 
@@ -377,7 +377,7 @@ export interface StateMachineConstructor {
       /**
        * get list of transitions that are allowed from the current state
        */
-      readonly transitions: Array<TTransitions[number]['name']>
+      readonly possibleTransitions: Array<TTransitions[number]['name']>
       /**
        * return true if input transition can occur from the current state
        */
@@ -405,7 +405,7 @@ const instance = new StateMachine({
   lifecycles: {
     onStep: (...args) => {
       // 这里的e为any 但到了typescript4.4就不会有这个问题了
-      console.log(args, 'onStep', instance.state)
+      console.log(args, 'onStep', instance.state, instance.possibleTransitions)
     },
     onA: (...args) => {
       console.log(args, 'onA')

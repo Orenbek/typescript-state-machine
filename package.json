@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "npx ts-node --project ./tsconfig.json ./src/state-machine.ts",
-    "lint": "eslint '*/**/*.{js,ts,tsx}' --fix"
+    "lint": "eslint '*/**/*.{js,ts}' --fix",
+    "preinstall": "npx only-allow pnpm"
   },
   "keywords": [
     "state-machine"
@@ -20,8 +21,21 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.25.3",
     "eslint-plugin-prettier": "^4.0.0",
+    "husky": "^7.0.4",
+    "lint-staged": "^11.2.6",
     "prettier": "^2.4.1",
     "ts-node": "^10.1.0",
     "typescript": "^4.4.4"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "pnpm run lint",
+      "git add"
+    ]
   }
 }
