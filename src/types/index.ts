@@ -1,4 +1,6 @@
-export type Merge<F extends Record<string | number, unknown>, S extends Record<string | number, unknown>> = {
+type UnknownRecord = Record<string | number, unknown>
+
+export type Merge<F extends UnknownRecord, S extends UnknownRecord> = {
   [P in keyof F | keyof S]: P extends keyof Omit<F, keyof S> ? F[P] : P extends keyof S ? S[P] : never
 }
 
@@ -15,14 +17,14 @@ export type RemoveFirst<T extends readonly unknown[]> = T extends readonly [unkn
 export type RomoveLast<T extends readonly unknown[]> = T extends readonly [...infer U, unknown] ? U : [...T]
 // [...infer U, unknown] 可以替换为 [...infer U, any]
 
-export type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extends 0
+export type MergeArr<T extends UnknownRecord[]> = T['length'] extends 0
   ? Record<string, never>
   : T['length'] extends 1
   ? T[0]
   : T extends [infer P, infer Q, ...infer U]
-  ? P extends Record<string | number, unknown>
-    ? Q extends Record<string | number, unknown>
-      ? U extends Record<string | number, unknown>[]
+  ? P extends UnknownRecord
+    ? Q extends UnknownRecord
+      ? U extends UnknownRecord[]
         ? MergeArr<[Merge<P, Q>, ...U]>
         : MergeArr<[Merge<P, Q>]>
       : never

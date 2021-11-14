@@ -1,11 +1,11 @@
-import { Transition, TransitionMethods, TransitionsFromTuple, StateUnion } from './transition'
-import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel } from './life-cycle'
+import { Transition, TransitionMethods, StateUnion } from './transition'
+import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
-import { isPromise, Flatten } from './types/index'
+import { isPromise } from './types/index'
 import { StateLifecycleMixin } from './mixin-functions'
 
-interface StateMachineParams<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
+interface StateMachineParams<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {
   readonly init?: StateUnion<TTransitions>
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
@@ -17,8 +17,8 @@ interface StateMachineParams<TTransitions extends readonly Transition<string, st
   >
 }
 
-type TransitionTuple<T extends readonly Transition<string, string>[]> = {
-  [K in keyof T]: T[K] extends Transition<string, string> ? T[K]['name'] : never
+type TransitionTuple<T extends readonly Transition[]> = {
+  [K in keyof T]: T[K] extends Transition ? T[K]['name'] : never
 }
 
 async function pipe<T extends (...params: any) => any>(inputs: [T, [...Parameters<T>]][], abortWhenResFalse = false) {
@@ -35,14 +35,14 @@ async function pipe<T extends (...params: any) => any>(inputs: [T, [...Parameter
   return abort
 }
 
-class StateMachineImpl<TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>> {
+class StateMachineImpl<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {
   state: StateUnion<TTransitions> | 'none' = 'none'
 
   data: StateMachineParams<TTransitions, Data>['data']
 
   private pending = false
 
-  private states: Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] | 'none'> = ['none'] // states不构成tuple
+  private states: Array<StateUnion<TTransitions> | 'none'> = ['none'] // states不构成tuple
 
   // represent all the transition names
   private readonly transition_names: TransitionTuple<TTransitions> = [] as unknown as TransitionTuple<TTransitions>
@@ -72,7 +72,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
           ['none']
         )
       )
-    ) as unknown as Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] | 'none'>
+    ) as unknown as Array<StateUnion<TTransitions> | 'none'>
     this.data = params.data
     this.life_cycles = params.lifecycles
     this.transition_names.forEach((tranName) => {
@@ -113,12 +113,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     return !this.can(transition)
   }
 
-  private onInvalidTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private onInvalidTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     if (this.life_cycles?.onInvalidTransition) {
       this.life_cycles.onInvalidTransition?.(
         {
@@ -134,12 +130,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     }
   }
 
-  private onPendingTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private onPendingTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     if (this.life_cycles?.onPendingTransition) {
       this.life_cycles.onPendingTransition?.(
         {
@@ -170,12 +162,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired before any transition
-  private async onBeforeTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async onBeforeTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     this.stateTransitionAssert(transition, from, to, ...args)
 
     this.pending = true
@@ -202,12 +190,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired when leaving any state
-  private async onLeaveState(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async onLeaveState(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     if (!this.life_cycles?.onLeaveState) {
@@ -230,12 +214,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired during any transition
-  private async onTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async onTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     if (!this.life_cycles?.onTransition) {
@@ -258,12 +238,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired when entering any state
-  private async onEnterState(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async onEnterState(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     await this.life_cycles?.onEnterState?.(
@@ -278,12 +254,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
   }
 
   // fired after any transition
-  private async onAfterTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async onAfterTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     await this.life_cycles?.onAfterTransition?.(
@@ -297,12 +269,8 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
     )
   }
 
-  private async fireTransition(
-    transition: TTransitions[number]['name'],
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
-    ...args: unknown[]
-  ) {
+  private async fireTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     /** execute order
      * onBeforeTransition
      * onBefore<TRANSITION>
@@ -358,7 +326,7 @@ class StateMachineImpl<TTransitions extends readonly Transition<string, string>[
 }
 
 export interface StateMachineConstructor {
-  new <TTransitions extends readonly Transition<string, string>[], Data extends Record<PropertyKey, unknown>>(
+  new <TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>>(
     params: StateMachineParams<TTransitions, Data>
   ): TransitionMethods<TTransitions> &
     Data & {
@@ -369,7 +337,7 @@ export interface StateMachineConstructor {
       /**
        * get list of all possible states
        */
-      readonly allStates: Array<Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+      readonly allStates: Array<StateUnion<TTransitions> | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
       /**
        * get list of all possible transitions
        */
@@ -389,31 +357,4 @@ export interface StateMachineConstructor {
     }
 }
 
-const StateMachine = StateMachineImpl as StateMachineConstructor
-
-const instance = new StateMachine({
-  init: 'A',
-  transitions: [
-    { name: 'step', from: 'A', to: 'B' },
-    { name: 'step', from: 'B', to: 'C' },
-    { name: 'step', from: 'C', to: 'D' },
-  ] as const,
-  data: {
-    color: 'ssss',
-    colors: [{ name: 'joe' }, { age: 'xx' }, 32] as const,
-  },
-  lifecycles: {
-    onStep: (...args) => {
-      // 这里的e为any 但到了typescript4.4就不会有这个问题了
-      console.log(args, 'onStep', instance.state, instance.possibleTransitions)
-    },
-    onA: (...args) => {
-      console.log(args, 'onA')
-    },
-  },
-})
-
-instance.step()
-setTimeout(() => {
-  instance.step()
-}, 100)
+export const StateMachine = StateMachineImpl as StateMachineConstructor

@@ -1,22 +1,21 @@
 import { Flatten } from './types/index'
 
-export interface Transition<TName extends string, State extends string> {
+export interface Transition<TName extends string = string, StateFrom extends string = string, StateTo extends string = string> {
   readonly name: TName
-  readonly from: State | readonly State[]
-  readonly to: State
+  readonly from: StateFrom | readonly StateFrom[]
+  readonly to: StateTo
 }
 
-export type TransitionMethods<TTransitions extends readonly Transition<string, string>[]> = {
-  [K in keyof TTransitions as TTransitions[K] extends Transition<string, string> ? TTransitions[K]['name'] : never]: (
-    ...args: any[]
-  ) => void
+export type TransitionMethods<TTransitions extends readonly Transition[]> = {
+  [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: any[]) => void
 }
 
-export type TransitionsFromTuple<T extends readonly Transition<string, string>[]> = {
-  [K in keyof T]: T[K] extends Transition<string, string> ? T[K]['from'] : never
+export type TransitionsFromTuple<TTransitions extends readonly Transition[]> = {
+  [K in keyof TTransitions]: TTransitions[K] extends Transition ? TTransitions[K]['from'] : never
 }
-// extract 'from' out of the Transitions as tuple
 
-export type StateUnion<TTransitions extends readonly Transition<string, string>[]> =
-  | Flatten<TransitionsFromTuple<TTransitions>>[number]
-  | TTransitions[number]['to']
+export type StateFromUnion<TTransitions extends readonly Transition[]> = Flatten<TransitionsFromTuple<TTransitions>>[number]
+
+export type StateToUnion<TTransitions extends readonly Transition[]> = TTransitions[number]['to']
+
+export type StateUnion<TTransitions extends readonly Transition[]> = StateFromUnion<TTransitions> | StateToUnion<TTransitions>

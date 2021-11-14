@@ -1,9 +1,8 @@
 import { ToCamelCase } from './utils/camelize'
-import { Transition, TransitionsFromTuple } from './transition'
-import { Flatten } from './types/index'
+import { Transition, StateUnion } from './transition'
 
 // general lifecycle events
-export interface GeneralLifeCycle<TTransitions extends readonly Transition<string, string>[]> {
+export interface GeneralLifeCycle<TTransitions extends readonly Transition[]> {
   onBeforeTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired before any transition: ;
   onLeaveState: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired when leaving any state
   onTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired during any transition: ;
@@ -11,7 +10,7 @@ export interface GeneralLifeCycle<TTransitions extends readonly Transition<strin
   onAfterTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void // fired after any transition
 }
 
-export type TransitionLifeCycel<TTransitions extends readonly Transition<string, string>[]> = {
+export type TransitionLifeCycel<TTransitions extends readonly Transition[]> = {
   [K in TTransitions[number]['name'] as ToCamelCase<`on-before-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
@@ -28,34 +27,41 @@ export type TransitionLifeCycel<TTransitions extends readonly Transition<string,
   ) => void // convenience shorthand for onAfter<TRANSITION>
 }
 
-export type StateLifeCycel<TTransitions extends readonly Transition<string, string>[]> = {
-  [K in Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] as ToCamelCase<`on-leave-${K & string}`>]: (
+export type StateLifeCycel<TTransitions extends readonly Transition[]> = {
+  [K in StateUnion<TTransitions> as ToCamelCase<`on-leave-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
   ) => boolean | Promise<void> | void // fired when leaving a specific STATE
 } & {
-  [K in Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] as ToCamelCase<`on-enter-${K & string}`>]: (
+  [K in StateUnion<TTransitions> as ToCamelCase<`on-enter-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
   ) => void // fired when entering a specific STATE
 } & {
-  [K in Flatten<TransitionsFromTuple<TTransitions>>[number] | TTransitions[number]['to'] as ToCamelCase<`on-${K & string}`>]: (
+  [K in StateUnion<TTransitions> as ToCamelCase<`on-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
   ) => void // convenience shorthand for onEnter<STATE>
 }
 
-export interface ExtraTransitionLifeCycel<TTransitions extends readonly Transition<string, string>[]> {
+export interface ExtraTransitionLifeCycel<TTransitions extends readonly Transition[]> {
   onInvalidTransition: (event: LifeCycleEventPayload<TTransitions>) => void
   onPendingTransition: (event: LifeCycleEventPayload<TTransitions>) => void
 }
 
-export type LifeCycleEventPayload<TTransitions extends readonly Transition<string, string>[]> = {
+export type LifeCycleEventPayload<TTransitions extends readonly Transition[]> = {
   event: ToCamelCase<`on-${TTransitions[number]['name']}`> // 不知道这里写的对不对
   from: TTransitions[number]['from']
   to: TTransitions[number]['to']
   transition: TTransitions[number]['name']
 }
+
+export type LifeCycleMethodPayload<TTransitions extends readonly Transition[]> = [
+  transition: TTransitions[number]['name'],
+  from: TTransitions[number]['from'],
+  to: TTransitions[number]['to'],
+  ...args: unknown[]
+]
 
 /** Lifecycle Events Listed in Order */
 /**
