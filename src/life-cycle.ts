@@ -49,8 +49,10 @@ export interface ExtraTransitionLifeCycel<TTransitions extends readonly Transiti
   onPendingTransition: (event: LifeCycleEventPayload<TTransitions>) => void
 }
 
+// for now eventPayload is just a union type. is it possible to make it Generic to narrowdown type to a single precise type? i dont know.
+// i think for now it's ok, dont need to push it to the limit.
 export type LifeCycleEventPayload<TTransitions extends readonly Transition[]> = {
-  event: ToCamelCase<`on-${TTransitions[number]['name']}`> // 不知道这里写的对不对
+  event: ToCamelCase<`on-${TTransitions[number]['name']}`>
   from: TTransitions[number]['from']
   to: TTransitions[number]['to']
   transition: TTransitions[number]['name']
@@ -77,3 +79,5 @@ export type LifeCycleMethodPayload<TTransitions extends readonly Transition[]> =
  * onAfter<TRANSITION> - fired after a specific TRANSITION
  * on<TRANSITION> - convenience shorthand for onAfter<TRANSITION>
  */
+
+export type ListenersLifeCycleEventType = 'onBeforeTransition' | 'onLeaveState' | 'onTransition' | 'onEnterState' | 'onAfterTransition'

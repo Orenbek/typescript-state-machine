@@ -1,5 +1,13 @@
 import type { Transition, TransitionMethods, StateUnion, TransitionTupleDeduplicate } from './transition'
-import type { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
+import type {
+  GeneralLifeCycle,
+  TransitionLifeCycel,
+  StateLifeCycel,
+  ExtraTransitionLifeCycel,
+  LifeCycleMethodPayload,
+  LifeCycleEventPayload,
+  ListenersLifeCycleEventType,
+} from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
 import { isPromise } from './utils/types'
@@ -47,6 +55,20 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
 
   // 这里必须得 readonly [...TTransitions] 这么写 不能直接写 TTransitions。原因后续了解一下
   private readonly life_cycles: StateMachineParams<TTransitions, Data>['lifecycles']
+
+  private listeners: {
+    onBeforeTransition: Array<(event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void>
+    onLeaveState: Array<(event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void>
+    onTransition: Array<(event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void>
+    onEnterState: Array<(event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void>
+    onAfterTransition: Array<(event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void>
+  } = {
+    onBeforeTransition: [],
+    onLeaveState: [],
+    onTransition: [],
+    onEnterState: [],
+    onAfterTransition: [],
+  }
 
   // 这里的class的type是假的 这个class的实现对内可以认为没有type 对外有type
   constructor(params: StateMachineParams<TTransitions, Data>) {
@@ -96,6 +118,10 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     return this.transitions
       .filter((transit) => transit.from === this.state || (Array.isArray(transit.from) && transit.from.includes(this.state as string)))
       .map((transit) => transit.name)
+  }
+
+  get isFinalState() {
+    return this.possibleTransitions.length === 0
   }
 
   // is<T extends TTransitions[number]["name"]>(transition: T): this is this & { state: T } {
@@ -321,6 +347,17 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     ])
     this.pending = false
   }
+
+  addEventListener(type: ListenersLifeCycleEventType, callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void) {
+    this.listeners[type].push(callback)
+  }
+
+  removeEventListener(
+    type: ListenersLifeCycleEventType,
+    callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+  ) {
+    this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
+  }
 }
 
 export interface StateMachineConstructor {
@@ -344,6 +381,10 @@ export interface StateMachineConstructor {
      */
     readonly possibleTransitions: Array<TTransitions[number]['name']>
     /**
+     * check the current state if it's the final state
+     */
+    readonly isFinalState: boolean
+    /**
      * return true if input transition can occur from the current state
      */
     can: (transition: TTransitions[number]['name']) => boolean
@@ -353,6 +394,16 @@ export interface StateMachineConstructor {
     cannot: (transition: TTransitions[number]['name']) => boolean
     /** custom data property */
     data: Data
+    /** add event listener */
+    addEventListener: (
+      type: ListenersLifeCycleEventType,
+      callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+    ) => void
+    /** remove event listener */
+    removeEventListener: (
+      type: ListenersLifeCycleEventType,
+      callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+    ) => void
   }
 }
 
