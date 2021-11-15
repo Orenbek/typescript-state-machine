@@ -10,7 +10,6 @@ import type {
 } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
-import { isPromise } from './utils/types'
 import { StateLifecycleMixin } from './mixin-functions'
 
 interface StateMachineParams<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {
@@ -197,7 +196,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     if (!this.life_cycles?.onBeforeTransition) {
       return true
     }
-    let res = this.life_cycles.onBeforeTransition?.(
+    const res = await this.life_cycles.onBeforeTransition?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -206,10 +205,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
       },
       ...args
     )
-    // is return false or rejected, then should abort transition
-    if (isPromise(res)) {
-      res = await res
-    }
     return res !== false
   }
 
@@ -221,7 +216,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     if (!this.life_cycles?.onLeaveState) {
       return true
     }
-    let res = this.life_cycles.onLeaveState?.(
+    const res = await this.life_cycles.onLeaveState?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -230,10 +225,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
       },
       ...args
     )
-    // is return false or rejected, then should abort transition
-    if (isPromise(res)) {
-      res = await res
-    }
     return res !== false
   }
 
@@ -245,7 +236,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     if (!this.life_cycles?.onTransition) {
       return true
     }
-    let res = this.life_cycles.onTransition?.(
+    const res = await this.life_cycles.onTransition?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -254,10 +245,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
       },
       ...args
     )
-    // is return false or rejected, then should abort transition
-    if (isPromise(res)) {
-      res = await res
-    }
     return res !== false
   }
 
@@ -311,15 +298,18 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     const aborted = await pipe(
       [
         [this.onBeforeTransition.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onBeforeTransition', [transition, from, to, ...args]]],
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         [this[camelize.prepended('onBefore', transition)].bind(this), [transition, from, to, ...args]],
         [this.onLeaveState.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onLeaveState', [transition, from, to, ...args]]],
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         [this[camelize.prepended('onLeave', this.state)].bind(this), [transition, from, to, ...args]],
         // because from can be a array of string, so use this.state instead of from
         [this.onTransition.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onTransition', [transition, from, to, ...args]]],
       ],
       true
     )
@@ -331,6 +321,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     this.state = to
     await pipe([
       [this.onEnterState.bind(this), [transition, from, to, ...args]],
+      [this.fireListenerCallback.bind(this), ['onEnterState', [transition, from, to, ...args]]],
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       [this[camelize.prepended('onEnter', to)].bind(this), [transition, from, to, ...args]],
@@ -338,6 +329,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
       // @ts-ignore
       [this[camelize.prepended('on', to)].bind(this), [transition, from, to, ...args]],
       [this.onAfterTransition.bind(this), [transition, from, to, ...args]],
+      [this.fireListenerCallback.bind(this), ['onAfterTransition', [transition, from, to, ...args]]],
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       [this[camelize.prepended('onAfter', transition)].bind(this), [transition, from, to, ...args]],
@@ -357,6 +349,21 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
   ) {
     this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
+  }
+
+  fireListenerCallback(type: ListenersLifeCycleEventType, payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
+    this.listeners[type].forEach(function (callback) {
+      callback(
+        {
+          event: camelize.prepended('on', transition),
+          from,
+          to,
+          transition,
+        },
+        ...args
+      )
+    })
   }
 }
 
