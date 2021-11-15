@@ -1,4 +1,4 @@
-import type { Transition, TransitionMethods, StateUnion, TransitionTuple } from './transition'
+import type { Transition, TransitionMethods, StateUnion, TransitionTupleDeduplicate } from './transition'
 import type { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
@@ -41,7 +41,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
   private states: Array<StateUnion<TTransitions> | 'none'> = ['none'] // states不构成tuple
 
   // represent all the transition names
-  private readonly transition_names: TransitionTuple<TTransitions> = [] as unknown as TransitionTuple<TTransitions>
+  private readonly transition_names: TransitionTupleDeduplicate<TTransitions> = [] as unknown as TransitionTupleDeduplicate<TTransitions>
 
   private readonly transitions: StateMachineParams<TTransitions, Data>['transitions'] = [] as unknown as TTransitions
 
@@ -55,7 +55,9 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     }
     this.transitions = [...params.transitions]
     // De-duplication
-    this.transition_names = Array.from(new Set(this.transitions.map((transit) => transit.name))) as unknown as TransitionTuple<TTransitions>
+    this.transition_names = Array.from(
+      new Set(this.transitions.map((transit) => transit.name))
+    ) as unknown as TransitionTupleDeduplicate<TTransitions>
     this.states = Array.from(
       new Set(
         this.transitions.reduce(
@@ -65,7 +67,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
             }
             return [...a, b.from, b.to]
           },
-          ['none']
+          params.init ? [] : ['none']
         )
       )
     ) as unknown as Array<StateUnion<TTransitions> | 'none'>
@@ -336,7 +338,7 @@ export interface StateMachineConstructor {
     /**
      * get list of all possible transitions
      */
-    readonly allTransitions: TransitionTuple<TTransitions>
+    readonly allTransitions: TransitionTupleDeduplicate<TTransitions>
     /**
      * get list of transitions that are allowed from the current state
      */

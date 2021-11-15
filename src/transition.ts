@@ -1,4 +1,4 @@
-import { Flatten } from './utils/types'
+import { Flatten, TupleDeDuplication } from './utils/types'
 
 export interface Transition<TName extends string = string, StateFrom extends string = string, StateTo extends string = string> {
   readonly name: TName
@@ -10,9 +10,11 @@ export type TransitionMethods<TTransitions extends readonly Transition[]> = {
   [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: any[]) => void
 }
 
-export type TransitionTuple<T extends readonly Transition[]> = {
-  [K in keyof T]: T[K] extends Transition ? T[K]['name'] : never
+export type TransitionTuple<TTransitions extends readonly Transition[]> = {
+  [K in keyof TTransitions]: TTransitions[K] extends Transition ? TTransitions[K]['name'] : never
 }
+
+export type TransitionTupleDeduplicate<TTransitions extends readonly Transition[]> = TupleDeDuplication<TransitionTuple<TTransitions>>
 
 export type StateFromTuple<TTransitions extends readonly Transition[]> = {
   [K in keyof TTransitions]: TTransitions[K] extends Transition ? TTransitions[K]['from'] : never

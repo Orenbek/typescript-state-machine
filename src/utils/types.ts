@@ -60,6 +60,18 @@ type MergeArr<T extends Record<string | number, unknown>[]> = T['length'] extend
 
 export type Flatten<T> = T extends [] ? [] : T extends readonly [infer First, ...infer Rest] ? [...Flatten<First>, ...Flatten<Rest>] : [T]
 
+export type TupleDeDuplication<T extends readonly unknown[], Result extends readonly unknown[] = []> = T['length'] extends 0
+  ? Result
+  : T['length'] extends 1
+  ? T[0] extends Result[number]
+    ? Result
+    : [...Result, T[0]]
+  : T extends readonly [infer First, ...infer Rest]
+  ? First extends Result[number]
+    ? TupleDeDuplication<Rest, Result>
+    : TupleDeDuplication<Rest, [...Result, First]>
+  : never
+
 export function isPromise(input: any): input is Promise<unknown> {
   return Boolean(input) && typeof input.then === 'function'
 }
