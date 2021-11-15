@@ -2,7 +2,7 @@ import type { Transition, TransitionMethods, StateUnion, TransitionTuple } from 
 import type { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
-import { isPromise } from './types/index'
+import { isPromise } from './utils/types'
 import { StateLifecycleMixin } from './mixin-functions'
 
 interface StateMachineParams<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {

@@ -1,6 +1,6 @@
 import camelize from './utils/camelize'
 import { Exception } from './utils/exception'
-import { isPromise } from './types/index'
+import { isPromise } from './utils/types'
 
 // We don’t need to care about the return value of all life-cycles method after the Transition life-cycles
 export class StateLifecycleMixin {

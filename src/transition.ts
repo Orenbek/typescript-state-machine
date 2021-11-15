@@ -1,4 +1,4 @@
-import { Flatten } from './types/index'
+import { Flatten } from './utils/types'
 
 export interface Transition<TName extends string = string, StateFrom extends string = string, StateTo extends string = string> {
   readonly name: TName
