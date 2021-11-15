@@ -10,11 +10,15 @@ export type TransitionMethods<TTransitions extends readonly Transition[]> = {
   [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: any[]) => void
 }
 
-export type TransitionsFromTuple<TTransitions extends readonly Transition[]> = {
+export type TransitionTuple<T extends readonly Transition[]> = {
+  [K in keyof T]: T[K] extends Transition ? T[K]['name'] : never
+}
+
+export type StateFromTuple<TTransitions extends readonly Transition[]> = {
   [K in keyof TTransitions]: TTransitions[K] extends Transition ? TTransitions[K]['from'] : never
 }
 
-export type StateFromUnion<TTransitions extends readonly Transition[]> = Flatten<TransitionsFromTuple<TTransitions>>[number]
+export type StateFromUnion<TTransitions extends readonly Transition[]> = Flatten<StateFromTuple<TTransitions>>[number]
 
 export type StateToUnion<TTransitions extends readonly Transition[]> = TTransitions[number]['to']
 

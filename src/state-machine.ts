@@ -1,5 +1,5 @@
-import { Transition, TransitionMethods, StateUnion } from './transition'
-import { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
+import type { Transition, TransitionMethods, StateUnion, TransitionTuple } from './transition'
+import type { GeneralLifeCycle, TransitionLifeCycel, StateLifeCycel, ExtraTransitionLifeCycel, LifeCycleMethodPayload } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
 import { isPromise } from './types/index'
@@ -15,10 +15,6 @@ interface StateMachineParams<TTransitions extends readonly Transition[], Data ex
       StateLifeCycel<TTransitions> &
       ExtraTransitionLifeCycel<TTransitions>
   >
-}
-
-type TransitionTuple<T extends readonly Transition[]> = {
-  [K in keyof T]: T[K] extends Transition ? T[K]['name'] : never
 }
 
 async function pipe<T extends (...params: any) => any>(inputs: [T, [...Parameters<T>]][], abortWhenResFalse = false) {
@@ -328,33 +324,34 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
 export interface StateMachineConstructor {
   new <TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>>(
     params: StateMachineParams<TTransitions, Data>
-  ): TransitionMethods<TTransitions> &
-    Data & {
-      /**
-       * current state property
-       */
-      state: StateUnion<TTransitions> | 'none'
-      /**
-       * get list of all possible states
-       */
-      readonly allStates: Array<StateUnion<TTransitions> | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
-      /**
-       * get list of all possible transitions
-       */
-      readonly allTransitions: TransitionTuple<TTransitions>
-      /**
-       * get list of transitions that are allowed from the current state
-       */
-      readonly possibleTransitions: Array<TTransitions[number]['name']>
-      /**
-       * return true if input transition can occur from the current state
-       */
-      can: (transition: TTransitions[number]['name']) => boolean
-      /**
-       * return true if tinput ransition cannot occur from the current state
-       */
-      cannot: (transition: TTransitions[number]['name']) => boolean
-    }
+  ): TransitionMethods<TTransitions> & {
+    /**
+     * current state property
+     */
+    state: StateUnion<TTransitions> | 'none'
+    /**
+     * get list of all possible states
+     */
+    readonly allStates: Array<StateUnion<TTransitions> | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+    /**
+     * get list of all possible transitions
+     */
+    readonly allTransitions: TransitionTuple<TTransitions>
+    /**
+     * get list of transitions that are allowed from the current state
+     */
+    readonly possibleTransitions: Array<TTransitions[number]['name']>
+    /**
+     * return true if input transition can occur from the current state
+     */
+    can: (transition: TTransitions[number]['name']) => boolean
+    /**
+     * return true if tinput ransition cannot occur from the current state
+     */
+    cannot: (transition: TTransitions[number]['name']) => boolean
+    /** custom data property */
+    data: Data
+  }
 }
 
-export const StateMachine = StateMachineImpl as StateMachineConstructor
+export const StateMachine = StateMachineImpl as unknown as StateMachineConstructor
