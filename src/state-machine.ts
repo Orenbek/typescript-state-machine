@@ -10,9 +10,53 @@ import type {
 } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
+import { pipe } from './utils/pipe'
 import { StateLifecycleMixin } from './mixin-functions'
 
-interface StateMachineParams<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {
+export interface StateMachineImplInterface<TTransitions extends readonly Transition[], Data> {
+  /**
+   * current state property
+   */
+  state: StateUnion<TTransitions> | 'none'
+  /**
+   * get the list of all possible states
+   */
+  readonly allStates: Array<StateUnion<TTransitions> | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
+  /**
+   * get the list of all transitions
+   */
+  readonly allTransitions: TransitionTupleDeduplicate<TTransitions>
+  /**
+   * get the list of transitions that are allowed from the current state
+   */
+  readonly possibleTransitions: Array<TTransitions[number]['name']>
+  /**
+   * check the current state if it's the final state
+   */
+  readonly isFinalState: boolean
+  /**
+   * return true if input transition can occur from the current state
+   */
+  can: (transition: TTransitions[number]['name']) => boolean
+  /**
+   * return true if tinput ransition cannot occur from the current state
+   */
+  cannot: (transition: TTransitions[number]['name']) => boolean
+  /** custom data property */
+  data: Data
+  /** add event listener */
+  addEventListener: (
+    type: ListenersLifeCycleEventType,
+    callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+  ) => void
+  /** remove event listener */
+  removeEventListener: (
+    type: ListenersLifeCycleEventType,
+    callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+  ) => void
+}
+
+interface StateMachineParams<TTransitions extends readonly Transition[], Data> {
   readonly init?: StateUnion<TTransitions>
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
@@ -24,24 +68,12 @@ interface StateMachineParams<TTransitions extends readonly Transition[], Data ex
   >
 }
 
-async function pipe<T extends (...params: any) => any>(inputs: [T, [...Parameters<T>]][], abortWhenResFalse = false) {
-  let abort = false
-  // eslint-disable-next-line no-restricted-syntax
-  for (const i of inputs) {
-    // eslint-disable-next-line no-await-in-loop
-    const res = await i[0](...i[1])
-    if (abortWhenResFalse && res === false) {
-      abort = true
-      break
-    }
-  }
-  return abort
-}
-
-class StateMachineImpl<TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>> {
+class StateMachineImpl<TTransitions extends readonly Transition[], Data> implements StateMachineImplInterface<TTransitions, Data> {
   state: StateUnion<TTransitions> | 'none' = 'none'
 
-  data: StateMachineParams<TTransitions, Data>['data']
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  data!: StateMachineParams<TTransitions, Data>['data']
 
   private pending = false
 
@@ -340,18 +372,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
     this.pending = false
   }
 
-  addEventListener(type: ListenersLifeCycleEventType, callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void) {
-    this.listeners[type].push(callback)
-  }
-
-  removeEventListener(
-    type: ListenersLifeCycleEventType,
-    callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
-  ) {
-    this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
-  }
-
-  fireListenerCallback(type: ListenersLifeCycleEventType, payloads: LifeCycleMethodPayload<TTransitions>) {
+  private fireListenerCallback(type: ListenersLifeCycleEventType, payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     this.listeners[type].forEach(function (callback) {
       callback(
@@ -365,53 +386,23 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data extends 
       )
     })
   }
+
+  addEventListener(type: ListenersLifeCycleEventType, callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void) {
+    this.listeners[type].push(callback)
+  }
+
+  removeEventListener(
+    type: ListenersLifeCycleEventType,
+    callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
+  ) {
+    this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
+  }
 }
 
 export interface StateMachineConstructor {
   new <TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>>(
     params: StateMachineParams<TTransitions, Data>
-  ): TransitionMethods<TTransitions> & {
-    /**
-     * current state property
-     */
-    state: StateUnion<TTransitions> | 'none'
-    /**
-     * get list of all possible states
-     */
-    readonly allStates: Array<StateUnion<TTransitions> | 'none'> // 这里应该是所有state的组合 但是组合的数量根据state的数量会迅速夸大到无法理解的地步，对使用者没有帮助
-    /**
-     * get list of all possible transitions
-     */
-    readonly allTransitions: TransitionTupleDeduplicate<TTransitions>
-    /**
-     * get list of transitions that are allowed from the current state
-     */
-    readonly possibleTransitions: Array<TTransitions[number]['name']>
-    /**
-     * check the current state if it's the final state
-     */
-    readonly isFinalState: boolean
-    /**
-     * return true if input transition can occur from the current state
-     */
-    can: (transition: TTransitions[number]['name']) => boolean
-    /**
-     * return true if tinput ransition cannot occur from the current state
-     */
-    cannot: (transition: TTransitions[number]['name']) => boolean
-    /** custom data property */
-    data: Data
-    /** add event listener */
-    addEventListener: (
-      type: ListenersLifeCycleEventType,
-      callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
-    ) => void
-    /** remove event listener */
-    removeEventListener: (
-      type: ListenersLifeCycleEventType,
-      callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
-    ) => void
-  }
+  ): TransitionMethods<TTransitions> & StateMachineImpl<TTransitions, Data>
 }
 
-export const StateMachine = StateMachineImpl as unknown as StateMachineConstructor
+export const StateMachine = StateMachineImpl as StateMachineConstructor
