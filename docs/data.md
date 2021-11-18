@@ -10,8 +10,8 @@ const fsm = new StateMachine({
   data: {
     color: 'red',
   },
-});
+})
 
-fsm.state; // 'A'
-fsm.color; // 'red'
+fsm.state // 'A'
+fsm.data.color // 'red'
 ```

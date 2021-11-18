@@ -7,7 +7,7 @@ export interface Transition<TName extends string = string, StateFrom extends str
 }
 
 export type TransitionMethods<TTransitions extends readonly Transition[]> = {
-  [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: any[]) => void
+  [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: unknown[]) => void
 }
 
 export type TransitionTuple<TTransitions extends readonly Transition[]> = {
@@ -15,6 +15,8 @@ export type TransitionTuple<TTransitions extends readonly Transition[]> = {
 }
 
 export type TransitionTupleDeduplicate<TTransitions extends readonly Transition[]> = TupleDeDuplication<TransitionTuple<TTransitions>>
+
+export type TransitionUnion<TTransitions extends readonly Transition[]> = TTransitions[number]['name']
 
 export type StateFromTuple<TTransitions extends readonly Transition[]> = {
   [K in keyof TTransitions]: TTransitions[K] extends Transition ? TTransitions[K]['from'] : never

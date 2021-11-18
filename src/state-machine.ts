@@ -1,4 +1,4 @@
-import type { Transition, TransitionMethods, StateUnion, TransitionTupleDeduplicate } from './transition'
+import type { Transition, TransitionMethods, StateUnion, TransitionTupleDeduplicate, TransitionUnion, StateFromUnion } from './transition'
 import type {
   GeneralLifeCycle,
   TransitionLifeCycel,
@@ -29,7 +29,7 @@ export interface StateMachineImplInterface<TTransitions extends readonly Transit
   /**
    * get the list of transitions that are allowed from the current state
    */
-  readonly possibleTransitions: Array<TTransitions[number]['name']>
+  readonly possibleTransitions: Array<TransitionUnion<TTransitions>>
   /**
    * check the current state if it's the final state
    */
@@ -37,11 +37,11 @@ export interface StateMachineImplInterface<TTransitions extends readonly Transit
   /**
    * return true if input transition can occur from the current state
    */
-  can: (transition: TTransitions[number]['name']) => boolean
+  can: (transition: TransitionUnion<TTransitions>) => boolean
   /**
    * return true if tinput ransition cannot occur from the current state
    */
-  cannot: (transition: TTransitions[number]['name']) => boolean
+  cannot: (transition: TransitionUnion<TTransitions>) => boolean
   /** custom data property */
   data: Data
   /** add event listener */
@@ -57,7 +57,7 @@ export interface StateMachineImplInterface<TTransitions extends readonly Transit
 }
 
 interface StateMachineParams<TTransitions extends readonly Transition[], Data> {
-  readonly init?: StateUnion<TTransitions>
+  readonly init: StateFromUnion<TTransitions>
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
   readonly lifecycles?: Partial<
@@ -80,7 +80,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   private states: Array<StateUnion<TTransitions> | 'none'> = ['none'] // states不构成tuple
 
   // represent all the transition names
-  private readonly transition_names: TransitionTupleDeduplicate<TTransitions> = [] as unknown as TransitionTupleDeduplicate<TTransitions>
+  private readonly transition_names: TransitionTupleDeduplicate<TTransitions> = [] as TransitionTupleDeduplicate<TTransitions>
 
   private readonly transitions: StateMachineParams<TTransitions, Data>['transitions'] = [] as unknown as TTransitions
 
@@ -103,27 +103,19 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
 
   // 这里的class的type是假的 这个class的实现对内可以认为没有type 对外有type
   constructor(params: StateMachineParams<TTransitions, Data>) {
-    if (params.init) {
-      this.state = params.init
-    }
     this.transitions = [...params.transitions]
     // De-duplication
-    this.transition_names = Array.from(
-      new Set(this.transitions.map((transit) => transit.name))
-    ) as unknown as TransitionTupleDeduplicate<TTransitions>
+    this.transition_names = Array.from(new Set(this.transitions.map((transit) => transit.name))) as TransitionTupleDeduplicate<TTransitions>
     this.states = Array.from(
       new Set(
-        this.transitions.reduce(
-          (a, b) => {
-            if (Array.isArray(b.from)) {
-              return [...a, ...b.from, b.to]
-            }
-            return [...a, b.from, b.to]
-          },
-          params.init ? [] : ['none']
-        )
+        this.transitions.reduce((a, b) => {
+          if (Array.isArray(b.from)) {
+            return [...a, ...b.from, b.to]
+          }
+          return [...a, b.from, b.to]
+        }, [] as TTransitions[])
       )
-    ) as unknown as Array<StateUnion<TTransitions> | 'none'>
+    ) as Array<StateUnion<TTransitions> | 'none'>
     this.data = params.data
     this.life_cycles = params.lifecycles
     this.transition_names.forEach((tranName) => {
@@ -135,6 +127,21 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       StateLifecycleMixin.OnLeaveState.bind(this)(this, state)
       StateLifecycleMixin.OnEnterState.bind(this)(this, state)
     })
+    // register init transition function
+    StateLifecycleMixin.OnAfterTransition.bind(this)(this, 'init')
+
+    if (
+      this.transitions.every((transition) => {
+        if (Array.isArray(transition.from)) {
+          return !transition.from.includes(params.init)
+        }
+        return transition.from !== params.init
+      })
+    ) {
+      this.onInvalidTransition('init', 'none', params.init)
+    }
+    // async task
+    this.init(params.init)
   }
 
   get allStates() {
@@ -147,7 +154,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
 
   get possibleTransitions() {
     return this.transitions
-      .filter((transit) => transit.from === this.state || (Array.isArray(transit.from) && transit.from.includes(this.state as string)))
+      .filter((transit) => transit.from === this.state || (Array.isArray(transit.from) && transit.from.includes(this.state)))
       .map((transit) => transit.name)
   }
 
@@ -160,11 +167,11 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // }
   // function is been removed, cause this function cannot narrow down the type of this.state
 
-  can(transition: TTransitions[number]['name']) {
+  can(transition: TransitionUnion<TTransitions>) {
     return !this.pending && Boolean(this.possibleTransitions.find((name) => name === transition))
   }
 
-  cannot(transition: TTransitions[number]['name']) {
+  cannot(transition: TransitionUnion<TTransitions>) {
     return !this.can(transition)
   }
 
@@ -181,7 +188,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
         ...args
       )
     } else {
-      throw new Exception('invalid transition!', transition, from, to, this.state as string)
+      throw new Exception('invalid transition!', transition, from as string, to as string, this.state as string)
     }
   }
 
@@ -198,12 +205,12 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
         ...args
       )
     } else {
-      throw new Exception('transition on pending!', transition, from, to, this.state as string)
+      throw new Exception('transition on pending!', transition, from as string, to as string, this.state as string)
     }
   }
 
   private stateTransitionAssert(
-    transition: TTransitions[number]['name'],
+    transition: TransitionUnion<TTransitions>,
     from: TTransitions[number]['from'],
     to: TTransitions[number]['to'],
     ...args: unknown[]
@@ -396,6 +403,29 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     callback: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void
   ) {
     this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
+  }
+
+  private async init(initState: StateUnion<TTransitions>) {
+    this.pending = true
+    const initialState = this.state // should be 'none'
+    this.state = initState
+    this.onEnterState('init', initialState, initState)
+    this.fireListenerCallback('onEnterState', ['init', initialState, initState])
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('onEnter', initState)]('init', initialState, initState)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('on', initState)]('init', initialState, initState)
+    this.onAfterTransition('init', initialState, initState)
+    this.fireListenerCallback('onAfterTransition', ['init', initialState, initState])
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this.onAfterInit('init', initialState, initState)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this.onInit('init', initialState, initState)
+    this.pending = false
   }
 }
 

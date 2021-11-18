@@ -72,6 +72,6 @@ export type TupleDeDuplication<T extends readonly unknown[], Result extends read
     : TupleDeDuplication<Rest, [...Result, First]>
   : never
 
-export function isPromise(input: any): input is Promise<unknown> {
-  return Boolean(input) && typeof input.then === 'function'
+export function objectInGard<K extends string, T>(o: T, k: K): o is T & Record<K, unknown> {
+  return typeof o === 'object' && Boolean(o) && k in o
 }

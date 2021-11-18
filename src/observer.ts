@@ -2,7 +2,7 @@ import { StateMachineConstructor } from './state-machine'
 import { ListenersLifeCycleEventType } from './life-cycle'
 
 export function observer<T extends InstanceType<StateMachineConstructor>>(instance: T) {
-  const listeners: Array<{ type: ListenersLifeCycleEventType; callback: (...args: any[]) => any }> = []
+  const listeners: Array<{ type: ListenersLifeCycleEventType; callback: Parameters<T['addEventListener']>[1] }> = []
   return {
     onBeforeTransition(callback: Parameters<T['addEventListener']>[1]) {
       instance.addEventListener('onBeforeTransition', callback)

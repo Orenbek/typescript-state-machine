@@ -23,19 +23,19 @@ const fsm = new StateMachine({
   ],
   lifecycles: {
     onMelt: function () {
-      console.log('I melted');
+      console.log('I melted')
     },
     onFreeze: function () {
-      console.log('I froze');
+      console.log('I froze')
     },
     onVaporize: function () {
-      console.log('I vaporized');
+      console.log('I vaporized')
     },
     onCondense: function () {
-      console.log('I condensed');
+      console.log('I condensed')
     },
   },
-});
+})
 ```
 
 ... which creates an object with a current state property:
@@ -89,7 +89,7 @@ A state machine can perform actions during a transition by observing [**Lifecycl
 - onEnterLiquid
 - ...
 
-A state machine can also have arbitrary [**Data and Methods**](docs/data-and-methods.md).
+A state machine can also have arbitrary [**Data**](docs/data.md).
 
 # Documentation
 

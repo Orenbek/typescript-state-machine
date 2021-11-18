@@ -12,7 +12,7 @@ export class StateLifecycleMixin {
     Object.defineProperty(instance, tranName, {
       async value(...args) {
         const transition = this.transitions.find((tran) => tran.name === tranName)
-        this.fireTransition(tranName, transition.from, transition.to, ...args)
+        this.fireTransition(tranName, instance.state, transition.to, ...args)
       },
     })
   }
