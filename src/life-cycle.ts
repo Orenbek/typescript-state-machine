@@ -3,9 +3,9 @@ import { Transition, StateUnion, StateFromUnion, TransitionUnion } from './trans
 
 // general lifecycle events
 export type GeneralLifeCycle<TTransitions extends readonly Transition[]> = {
-  onBeforeTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired before any transition: ;
-  onLeaveState: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired when leaving any state
-  onTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<void> | void // fired during any transition: ;
+  onBeforeTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<unknown> | void // fired before any transition: ;
+  onLeaveState: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<unknown> | void // fired when leaving any state
+  onTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => boolean | Promise<unknown> | void // fired during any transition: ;
   onEnterState: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void // fired when entering any state
   onAfterTransition: (event: LifeCycleEventPayload<TTransitions>, ...args: unknown[]) => void // fired after any transition
 }
@@ -14,7 +14,7 @@ export type TransitionLifeCycel<TTransitions extends readonly Transition[]> = {
   [K in TransitionUnion<TTransitions> as ToCamelCase<`on-before-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
-  ) => boolean | Promise<void> | void // fired before a specific TRANSITION begins
+  ) => boolean | Promise<unknown> | void // fired before a specific TRANSITION begins
 } & {
   [K in TransitionUnion<TTransitions> as ToCamelCase<`on-after-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
@@ -31,7 +31,7 @@ export type StateLifeCycel<TTransitions extends readonly Transition[]> = {
   [K in StateUnion<TTransitions> as ToCamelCase<`on-leave-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,
     ...args: unknown[]
-  ) => boolean | Promise<void> | void // fired when leaving a specific STATE
+  ) => boolean | Promise<unknown> | void // fired when leaving a specific STATE
 } & {
   [K in StateUnion<TTransitions> as ToCamelCase<`on-enter-${K & string}`>]: (
     event: LifeCycleEventPayload<TTransitions>,

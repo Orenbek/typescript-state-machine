@@ -7,7 +7,9 @@ export interface Transition<TName extends string = string, StateFrom extends str
 }
 
 export type TransitionMethods<TTransitions extends readonly Transition[]> = {
-  [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (...args: unknown[]) => void
+  [K in keyof TTransitions as TTransitions[K] extends Transition ? TTransitions[K]['name'] : never]: (
+    ...args: unknown[]
+  ) => StateToUnion<TTransitions> | Promise<StateToUnion<TTransitions>>
 }
 
 export type TransitionTuple<TTransitions extends readonly Transition[]> = {

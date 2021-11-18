@@ -140,7 +140,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     ) {
       this.onInvalidTransition('init', 'none', params.init)
     }
-    // async task
+    // sync task
     this.init(params.init)
   }
 
@@ -192,6 +192,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     }
   }
 
+  // async callback!?
   private onPendingTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     if (this.life_cycles?.onPendingTransition) {
@@ -211,8 +212,8 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
 
   private stateTransitionAssert(
     transition: TransitionUnion<TTransitions>,
-    from: TTransitions[number]['from'],
-    to: TTransitions[number]['to'],
+    from: StateFromUnion<TTransitions> | 'none',
+    to: StateUnion<TTransitions>,
     ...args: unknown[]
   ): asserts transition {
     if (this.cannot(transition)) {
@@ -224,7 +225,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   }
 
   // fired before any transition
-  private async onBeforeTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private onBeforeTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     this.stateTransitionAssert(transition, from, to, ...args)
 
@@ -235,7 +236,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     if (!this.life_cycles?.onBeforeTransition) {
       return true
     }
-    const res = await this.life_cycles.onBeforeTransition?.(
+    return this.life_cycles.onBeforeTransition?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -244,18 +245,17 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       },
       ...args
     )
-    return res !== false
   }
 
   // fired when leaving any state
-  private async onLeaveState(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private onLeaveState(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     if (!this.life_cycles?.onLeaveState) {
       return true
     }
-    const res = await this.life_cycles.onLeaveState?.(
+    return this.life_cycles.onLeaveState?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -264,18 +264,17 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       },
       ...args
     )
-    return res !== false
   }
 
   // fired during any transition
-  private async onTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private onTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
     if (!this.life_cycles?.onTransition) {
       return true
     }
-    const res = await this.life_cycles.onTransition?.(
+    return this.life_cycles.onTransition?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -284,15 +283,14 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       },
       ...args
     )
-    return res !== false
   }
 
   // fired when entering any state
-  private async onEnterState(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private onEnterState(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
-    await this.life_cycles?.onEnterState?.(
+    return this.life_cycles?.onEnterState?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -304,11 +302,11 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   }
 
   // fired after any transition
-  private async onAfterTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private onAfterTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     // trigger event add up later
 
-    await this.life_cycles?.onAfterTransition?.(
+    return this.life_cycles?.onAfterTransition?.(
       {
         event: camelize.prepended('on', transition),
         from,
@@ -319,7 +317,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     )
   }
 
-  private async fireTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
+  private fireTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     /** execute order
      * onBeforeTransition
@@ -334,31 +332,149 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
      * onAfter<TRANSITION>
      * on<TRANSITION>
      */
-    const aborted = await pipe(
-      [
-        [this.onBeforeTransition.bind(this), [transition, from, to, ...args]],
-        [this.fireListenerCallback.bind(this), ['onBeforeTransition', [transition, from, to, ...args]]],
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        [this[camelize.prepended('onBefore', transition)].bind(this), [transition, from, to, ...args]],
-        [this.onLeaveState.bind(this), [transition, from, to, ...args]],
-        [this.fireListenerCallback.bind(this), ['onLeaveState', [transition, from, to, ...args]]],
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        [this[camelize.prepended('onLeave', this.state)].bind(this), [transition, from, to, ...args]],
-        // because from can be a array of string, so use this.state instead of from
-        [this.onTransition.bind(this), [transition, from, to, ...args]],
-        [this.fireListenerCallback.bind(this), ['onTransition', [transition, from, to, ...args]]],
-      ],
-      true
-    )
-    if (aborted) {
+    const beforeTransitionRes = this.beforeTransitionTasks(transition, from, to, ...args)
+    if (beforeTransitionRes === false) {
       this.pending = false
-      return
+      return Promise.reject()
     }
+    if (beforeTransitionRes instanceof Promise) {
+      return beforeTransitionRes.then((res) => {
+        if (res === false) {
+          return Promise.reject()
+        }
+        this.afterTransitionTasks(transition, from, to, ...args)
+        return to
+      })
+    }
+    this.afterTransitionTasks(transition, from, to, ...args)
+    return to
+  }
+
+  // poorly designed. dont know how to write a better version.
+  private beforeTransitionTasks(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
+    let result: Promise<unknown> | undefined
+    let curRes: unknown
+    curRes = this.onBeforeTransition(transition, from, to, ...args)
+    this.fireListenerCallback('onBeforeTransition', [transition, from, to, ...args])
+    if (curRes === false) {
+      return false
+    }
+    if (curRes instanceof Promise) {
+      result = curRes
+      return result
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          return this[camelize.prepended('onBefore', transition)](transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
+          return this.onLeaveState(transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
+          return this.onTransition(transition, from, to, ...args)
+        })
+    }
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    curRes = this[camelize.prepended('onBefore', transition)](transition, from, to, ...args)
+    if (curRes === false) {
+      return false
+    }
+    if (curRes instanceof Promise) {
+      result = curRes
+      return result
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
+          return this.onLeaveState(transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
+          return this.onTransition(transition, from, to, ...args)
+        })
+    }
+    this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
+    curRes = this.onLeaveState(transition, from, to, ...args)
+    if (curRes === false) {
+      return false
+    }
+    if (curRes instanceof Promise) {
+      result = curRes
+      return result
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
+        })
+        .then((res) => {
+          if (res === false) {
+            return false
+          }
+          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
+          return this.onTransition(transition, from, to, ...args)
+        })
+    }
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    curRes = this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
+    if (curRes === false) {
+      return false
+    }
+    if (curRes instanceof Promise) {
+      result = curRes
+      return result.then((res) => {
+        if (res === false) {
+          return false
+        }
+        this.fireListenerCallback('onTransition', [transition, from, to, ...args])
+        return this.onTransition(transition, from, to, ...args)
+      })
+    }
+    this.fireListenerCallback('onTransition', [transition, from, to, ...args])
+    return this.onTransition(transition, from, to, ...args)
+  }
+
+  private afterTransitionTasks(...payloads: LifeCycleMethodPayload<TTransitions>) {
+    const [transition, from, to, ...args] = payloads
     // update state
     this.state = to
-    await pipe([
+    const afterTransitionGenerator = pipe(
       [this.onEnterState.bind(this), [transition, from, to, ...args]],
       [this.fireListenerCallback.bind(this), ['onEnterState', [transition, from, to, ...args]]],
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -374,8 +490,11 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       [this[camelize.prepended('onAfter', transition)].bind(this), [transition, from, to, ...args]],
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      [this[camelize.prepended('on', transition)].bind(this), [transition, from, to, ...args]],
-    ])
+      [this[camelize.prepended('on', transition)].bind(this), [transition, from, to, ...args]]
+    )
+    while (!afterTransitionGenerator.next().done) {
+      // dont need to do anything here
+    }
     this.pending = false
   }
 
@@ -405,7 +524,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     this.listeners[type] = this.listeners[type].filter((listener) => callback !== listener)
   }
 
-  private async init(initState: StateUnion<TTransitions>) {
+  private init(initState: StateUnion<TTransitions>) {
     this.pending = true
     const initialState = this.state // should be 'none'
     this.state = initState
