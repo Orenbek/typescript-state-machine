@@ -33,6 +33,33 @@ A state machine consists of a set of **states**, e.g:
   fsm.state;             // 'gas'
 ```
 
+## Transition method return value
+
+If a trantion successed, then it return the current state. if it's failed, it return false.
+
+```javascript
+  var fsm = new StateMachine({
+    init: 'solid',
+    transitions: [hhh
+      { name: 'melt',     from: 'solid',  to: 'liquid' },
+      { name: 'freeze',   from: 'liquid', to: 'solid'  },
+      { name: 'vaporize', from: 'liquid', to: 'gas'    },
+      { name: 'condense', from: 'gas',    to: 'liquid' }
+    ],
+    onTransition: function(event) {
+      if (event.from === 'liquid') {
+        return false
+      }
+    }
+  });
+
+  fsm.state;             // 'solid'
+  fsm.melt();            // 'liquid'
+  fsm.state;             // 'liquid'
+  fsm.vaporize();        // 'liquid'
+  fsm.state;             // 'liquid'
+```
+
 ## Multiple states for a transition
 
 ![wizard state machine](../examples/wizard.png)
@@ -70,7 +97,7 @@ var fsm = new StateMachine({
     { name: 'step', from: 'C', to: 'D' },
     { name: 'reset', from: ['B', 'C', 'D'], to: 'A' },
   ],
-});
+})
 ```
 
 This example will create an object with 2 transition methods:

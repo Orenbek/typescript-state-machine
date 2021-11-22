@@ -192,7 +192,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     }
   }
 
-  // async callback!?
   private onPendingTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     if (this.life_cycles?.onPendingTransition) {
@@ -210,28 +209,11 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     }
   }
 
-  private stateTransitionAssert(
-    transition: TransitionUnion<TTransitions>,
-    from: StateFromUnion<TTransitions> | 'none',
-    to: StateUnion<TTransitions>,
-    ...args: unknown[]
-  ): asserts transition {
-    if (this.cannot(transition)) {
-      this.onInvalidTransition(transition, from, to, ...args)
-    }
-    if (this.pending) {
-      this.onPendingTransition(transition, from, to, ...args)
-    }
-  }
-
   // fired before any transition
   private onBeforeTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    this.stateTransitionAssert(transition, from, to, ...args)
 
     this.pending = true
-
-    // trigger event add up later
 
     if (!this.life_cycles?.onBeforeTransition) {
       return true
@@ -250,7 +232,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // fired when leaving any state
   private onLeaveState(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    // trigger event add up later
 
     if (!this.life_cycles?.onLeaveState) {
       return true
@@ -269,7 +250,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // fired during any transition
   private onTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    // trigger event add up later
 
     if (!this.life_cycles?.onTransition) {
       return true
@@ -288,7 +268,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // fired when entering any state
   private onEnterState(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    // trigger event add up later
 
     return this.life_cycles?.onEnterState?.(
       {
@@ -304,7 +283,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // fired after any transition
   private onAfterTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    // trigger event add up later
 
     return this.life_cycles?.onAfterTransition?.(
       {
@@ -319,6 +297,14 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
 
   private fireTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
+    if (this.cannot(transition)) {
+      this.onInvalidTransition(transition, from, to, ...args)
+      return false
+    }
+    if (this.pending) {
+      this.onPendingTransition(transition, from, to, ...args)
+      return false
+    }
     /** execute order
      * onBeforeTransition
      * onBefore<TRANSITION>
@@ -335,7 +321,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     const beforeTransitionRes = this.beforeTransitionTasks(transition, from, to, ...args)
     if (beforeTransitionRes === false) {
       this.pending = false
-      return Promise.reject()
+      return false
     }
     if (beforeTransitionRes instanceof Promise) {
       return beforeTransitionRes.then((res) => {

@@ -96,7 +96,6 @@ A state machine can also have arbitrary [**Data**](docs/data.md).
 Read more about
 
 - [States and Transitions](docs/states-and-transitions.md)
-- [Data and Methods](docs/data-and-methods.md)
 - [Lifecycle Events](docs/lifecycle-events.md)
 - [Asynchronous Transitions](docs/async-transitions.md)
 - [Initialization](docs/initialization.md)
@@ -105,20 +104,6 @@ Read more about
 - [Visualization](docs/visualization.md)
 - [State Machine Factory](docs/state-machine-factory.md) -->
 
-# Contributing
-
-You can [Contribute](docs/contributing.md) to this project with issues or pull requests.
-
-# Release Notes
-
-See [RELEASE NOTES](RELEASE_NOTES.md) file.
-
 # License
 
-See [MIT LICENSE](https://github.com/jakesgordon/javascript-state-machine/blob/master/LICENSE) file.
-
-# Contact
-
-If you have any ideas, feedback, requests or bug reports, you can reach me at
-[jake@codeincomplete.com](mailto:jake@codeincomplete.com), or via
-my website: [Code inComplete](http://codeincomplete.com/)
+See [MIT LICENSE](https://github.com/Orenbek/typescript-state-machine/blob/master/LICENSE) file.

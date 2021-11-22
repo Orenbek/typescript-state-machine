@@ -74,16 +74,16 @@ const fsm = new StateMachine({
   transitions: [{ name: 'step', from: 'A', to: 'B' }],
   lifecycles: {
     onTransition: function (lifecycle, arg1, arg2) {
-      console.log(lifecycle.transition); // 'step'
-      console.log(lifecycle.from); // 'A'
-      console.log(lifecycle.to); // 'B'
-      console.log(arg1); // 42
-      console.log(arg2); // 'hello'
+      console.log(lifecycle.transition) // 'step'
+      console.log(lifecycle.from) // 'A'
+      console.log(lifecycle.to) // 'B'
+      console.log(arg1) // 42
+      console.log(arg2) // 'hello'
     },
   },
-});
+})
 
-fsm.step(42, 'hello');
+fsm.step(42, 'hello')
 ```
 
 ## Lifecycle Event Names
@@ -136,7 +136,7 @@ var fsm = new StateMachine({
       /* ... */
     },
   },
-});
+})
 ```
 
 # Lifecycle Events Listed in Order
@@ -155,9 +155,7 @@ To recap, the lifecycle of a transition occurs in the following order:
 - `onAfter<TRANSITION>` - fired after a specific TRANSITION
 - `on<TRANSITION>` - convenience shorthand for `onAfter<TRANSITION>`
 
-# Asynchronous Transitions & Cancelling a Transition
-
-only following lifecycle functions support for asynchronous transition.
+# Cancelling a Transition
 
 Any observer can cancel a transition by explicitly returning `false` during any of the following
 lifecycle events:
