@@ -10,8 +10,15 @@ export class StateLifecycleMixin {
 
     Object.defineProperty(instance, tranName, {
       value(...args) {
-        const transition = this.transitions.find((tran) => tran.name === tranName)
-        return this.fireTransition(tranName, instance.state, transition.to, ...args)
+        const transition = this.transitions.find(
+          (tran) => tran.name === tranName && (tran.from === this.state || (Array.isArray(tran.from) && tran.from.includes(this.state)))
+        )
+        if (!transition || this.cannot(transition.name)) {
+          // invalid transition 'from' parameter may need to be ajusted
+          this.onInvalidTransition(tranName, this.state, transition?.to || null, ...args)
+          return false
+        }
+        return this.fireTransition(tranName, this.state, transition.to, ...args)
       },
     })
   }

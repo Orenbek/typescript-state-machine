@@ -49,7 +49,7 @@ export type ExtraTransitionLifeCycel<TTransitions extends readonly Transition[]>
   onPendingTransition: (event: LifeCycleEventPayload<TTransitions>) => void
 }
 
-export type InitTransitionLifeCycle<State extends string> = {
+export type InitTransitionLifeCycle<State> = {
   onAfterInit: (event: { event: 'onInit'; from: 'none'; to: State; transition: 'init' }) => void
   onInit: (event: { event: 'onInit'; from: 'none'; to: State; transition: 'init' }) => void
 }

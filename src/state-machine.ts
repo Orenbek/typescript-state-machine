@@ -7,6 +7,7 @@ import type {
   LifeCycleMethodPayload,
   LifeCycleEventPayload,
   ListenersLifeCycleEventType,
+  InitTransitionLifeCycle,
 } from './life-cycle'
 import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
@@ -56,15 +57,16 @@ export interface StateMachineImplInterface<TTransitions extends readonly Transit
   ) => void
 }
 
-interface StateMachineParams<TTransitions extends readonly Transition[], Data> {
-  readonly init: StateFromUnion<TTransitions>
+interface StateMachineParams<TTransitions extends readonly Transition[], Data, InitState extends StateFromUnion<TTransitions> = ''> {
+  readonly init: InitState
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
   readonly lifecycles?: Partial<
     GeneralLifeCycle<TTransitions> &
       TransitionLifeCycel<TTransitions> &
       StateLifeCycel<TTransitions> &
-      ExtraTransitionLifeCycel<TTransitions>
+      ExtraTransitionLifeCycel<TTransitions> &
+      InitTransitionLifeCycle<InitState>
   >
 }
 
@@ -168,7 +170,7 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // function is been removed, cause this function cannot narrow down the type of this.state
 
   can(transition: TransitionUnion<TTransitions>) {
-    return !this.pending && Boolean(this.possibleTransitions.find((name) => name === transition))
+    return Boolean(this.possibleTransitions.find((name) => name === transition))
   }
 
   cannot(transition: TransitionUnion<TTransitions>) {
@@ -297,10 +299,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
 
   private fireTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    if (this.cannot(transition)) {
-      this.onInvalidTransition(transition, from, to, ...args)
-      return false
-    }
     if (this.pending) {
       this.onPendingTransition(transition, from, to, ...args)
       return false
@@ -325,9 +323,6 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     }
     if (beforeTransitionRes instanceof Promise) {
       return beforeTransitionRes.then((res) => {
-        if (res === false) {
-          return Promise.reject()
-        }
         this.afterTransitionTasks(transition, from, to, ...args)
         return to
       })
@@ -339,148 +334,49 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   // poorly designed. dont know how to write a better version.
   private beforeTransitionTasks(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
-    let result: Promise<unknown> | undefined
-    let curRes: unknown
-    curRes = this.onBeforeTransition(transition, from, to, ...args)
-    this.fireListenerCallback('onBeforeTransition', [transition, from, to, ...args])
-    if (curRes === false) {
-      return false
-    }
-    if (curRes instanceof Promise) {
-      result = curRes
-      return result
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          return this[camelize.prepended('onBefore', transition)](transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
-          return this.onLeaveState(transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
-          return this.onTransition(transition, from, to, ...args)
-        })
-    }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    curRes = this[camelize.prepended('onBefore', transition)](transition, from, to, ...args)
-    if (curRes === false) {
-      return false
-    }
-    if (curRes instanceof Promise) {
-      result = curRes
-      return result
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
-          return this.onLeaveState(transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
-          return this.onTransition(transition, from, to, ...args)
-        })
-    }
-    this.fireListenerCallback('onLeaveState', [transition, from, to, ...args])
-    curRes = this.onLeaveState(transition, from, to, ...args)
-    if (curRes === false) {
-      return false
-    }
-    if (curRes instanceof Promise) {
-      result = curRes
-      return result
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          return this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
-        })
-        .then((res) => {
-          if (res === false) {
-            return false
-          }
-          this.fireListenerCallback('onTransition', [transition, from, to, ...args])
-          return this.onTransition(transition, from, to, ...args)
-        })
-    }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    curRes = this[camelize.prepended('onLeave', this.state)](transition, from, to, ...args)
-    if (curRes === false) {
-      return false
-    }
-    if (curRes instanceof Promise) {
-      result = curRes
-      return result.then((res) => {
-        if (res === false) {
-          return false
-        }
-        this.fireListenerCallback('onTransition', [transition, from, to, ...args])
-        return this.onTransition(transition, from, to, ...args)
-      })
-    }
-    this.fireListenerCallback('onTransition', [transition, from, to, ...args])
-    return this.onTransition(transition, from, to, ...args)
+    return pipe(
+      [
+        [this.onBeforeTransition.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onBeforeTransition', [transition, from, to, ...args]]],
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        [this[camelize.prepended('onBefore', transition)].bind(this), [transition, from, to, ...args]],
+        [this.onLeaveState.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onLeaveState', [transition, from, to, ...args]]],
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        [this[camelize.prepended('onLeave', this.state)].bind(this), [transition, from, to, ...args]],
+        // because from can be a array of string, so use this.state instead of from
+        [this.onTransition.bind(this), [transition, from, to, ...args]],
+        [this.fireListenerCallback.bind(this), ['onTransition', [transition, from, to, ...args]]],
+      ],
+      (taskResult, taskName) => taskResult !== false
+    )
   }
 
   private afterTransitionTasks(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
     // update state
     this.state = to
-    const afterTransitionGenerator = pipe(
-      [this.onEnterState.bind(this), [transition, from, to, ...args]],
-      [this.fireListenerCallback.bind(this), ['onEnterState', [transition, from, to, ...args]]],
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      [this[camelize.prepended('onEnter', to)].bind(this), [transition, from, to, ...args]],
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      [this[camelize.prepended('on', to)].bind(this), [transition, from, to, ...args]],
-      [this.onAfterTransition.bind(this), [transition, from, to, ...args]],
-      [this.fireListenerCallback.bind(this), ['onAfterTransition', [transition, from, to, ...args]]],
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      [this[camelize.prepended('onAfter', transition)].bind(this), [transition, from, to, ...args]],
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      [this[camelize.prepended('on', transition)].bind(this), [transition, from, to, ...args]]
-    )
-    while (!afterTransitionGenerator.next().done) {
-      // dont need to do anything here
-    }
+    // it this function, we don't care if these tasks are async or sync.
+    // because we dont need to wait these task's to resolve.
+    // and for the same reason, we can't use pipe funcion.
+    this.onEnterState(transition, from, to, ...args)
+    this.fireListenerCallback('onEnterState', [transition, from, to, ...args])
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('onEnter', to)](transition, from, to, ...args)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('on', to)](transition, from, to, ...args)
+    this.onAfterTransition(transition, from, to, ...args)
+    this.fireListenerCallback('onAfterTransition', [transition, from, to, ...args])
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('onAfter', transition)](transition, from, to, ...args)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this[camelize.prepended('on', transition)](transition, from, to, ...args)
     this.pending = false
   }
 
@@ -514,29 +410,34 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     this.pending = true
     const initialState = this.state // should be 'none'
     this.state = initState
-    this.onEnterState('init', initialState, initState)
-    this.fireListenerCallback('onEnterState', ['init', initialState, initState])
+    const params = ['init', initialState, initState] as const
+    this.onEnterState(...params)
+    this.fireListenerCallback('onEnterState', [...params])
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    this[camelize.prepended('onEnter', initState)]('init', initialState, initState)
+    this[camelize.prepended('onEnter', initState)](...params)
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    this[camelize.prepended('on', initState)]('init', initialState, initState)
-    this.onAfterTransition('init', initialState, initState)
-    this.fireListenerCallback('onAfterTransition', ['init', initialState, initState])
+    this[camelize.prepended('on', initState)](...params)
+    this.onAfterTransition(...params)
+    this.fireListenerCallback('onAfterTransition', [...params])
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    this.onAfterInit('init', initialState, initState)
+    this.onAfterInit(...params)
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    this.onInit('init', initialState, initState)
+    this.onInit(...params)
     this.pending = false
   }
 }
 
 export interface StateMachineConstructor {
-  new <TTransitions extends readonly Transition[], Data extends Record<PropertyKey, unknown>>(
-    params: StateMachineParams<TTransitions, Data>
+  new <
+    TTransitions extends readonly Transition[],
+    Data extends Record<PropertyKey, unknown>,
+    InitState extends StateFromUnion<TTransitions>
+  >(
+    params: StateMachineParams<TTransitions, Data, InitState>
   ): TransitionMethods<TTransitions> & StateMachineImpl<TTransitions, Data>
 }
 
