@@ -1,5 +1,6 @@
 import { StateMachine } from '../state-machine'
 import { Exception } from '../utils/exception'
+import { StateMachineHistory } from '../plugins'
 
 function wait(num: number, returnVal: unknown) {
   return new Promise((resolve) =>
@@ -260,5 +261,64 @@ describe('test transitions', () => {
         i.mock.invocationCallOrder[0] < (index === 0 ? 0 : mocks[index - 1].mock.invocationCallOrder[index === 5 || index === 8 ? 1 : 0])
     )
     expect(rightOrder).toBe(undefined)
+  })
+})
+
+describe('test history', () => {
+  test('test history functionality', () => {
+    const fsm = new StateMachine({
+      init: 'A',
+      transitions: [
+        { name: 'step', from: 'A', to: 'B' },
+        { name: 'step', from: 'B', to: 'C' },
+        { name: 'step', from: 'C', to: 'D' },
+        { name: 'reset', from: 'B', to: 'A' },
+        { name: 'reset', from: 'C', to: 'A' },
+        { name: 'reset', from: 'D', to: 'A' },
+      ] as const,
+      plugins: [new StateMachineHistory()],
+    })
+    expect(fsm.history).toEqual([])
+    expect(fsm.canHistoryBack).toBe(false)
+    expect(fsm.historyBack).toEqual(expect.any(Function))
+    expect(fsm.clearHistory).toEqual(expect.any(Function))
+    fsm.step()
+    expect(fsm.history).toEqual([{ transition: 'step', from: 'A', to: 'B' }])
+    expect(fsm.canHistoryBack).toBe(false)
+    fsm.step()
+    expect(fsm.history).toEqual([
+      { transition: 'step', from: 'A', to: 'B' },
+      { transition: 'step', from: 'B', to: 'C' },
+    ])
+    expect(fsm.canHistoryBack).toBe(true)
+    expect(fsm.historyBack()).toBe('B')
+    expect(fsm.history).toEqual([{ transition: 'step', from: 'A', to: 'B' }])
+    expect(fsm.canHistoryBack).toBe(false)
+    fsm.clearHistory()
+    expect(fsm.history).toEqual([])
+  })
+
+  test('test history length', () => {
+    const fsm = new StateMachine({
+      init: 'A',
+      transitions: [
+        { name: 'step', from: 'A', to: 'B' },
+        { name: 'step', from: 'B', to: 'C' },
+        { name: 'step', from: 'C', to: 'D' },
+        { name: 'reset', from: 'B', to: 'A' },
+        { name: 'reset', from: 'C', to: 'A' },
+        { name: 'reset', from: 'D', to: 'A' },
+      ] as const,
+      plugins: [new StateMachineHistory({ max: 3 })],
+    })
+    fsm.step()
+    fsm.step()
+    fsm.step()
+    fsm.reset()
+    expect(fsm.history).toEqual([
+      { transition: 'step', from: 'B', to: 'C' },
+      { transition: 'step', from: 'C', to: 'D' },
+      { transition: 'reset', from: 'D', to: 'A' },
+    ])
   })
 })

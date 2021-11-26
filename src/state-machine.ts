@@ -13,6 +13,7 @@ import { Exception } from './utils/exception'
 import camelize from './utils/camelize'
 import { pipe } from './utils/pipe'
 import { StateLifecycleMixin } from './mixin-functions'
+import { StateMachineHistory, HistoryPluginInstance, PluginExtendsMethods } from './plugins'
 
 export interface StateMachineImplInterface<TTransitions extends readonly Transition[], Data> {
   /**
@@ -57,7 +58,12 @@ export interface StateMachineImplInterface<TTransitions extends readonly Transit
   ) => void
 }
 
-interface StateMachineParams<TTransitions extends readonly Transition[], Data, InitState extends StateFromUnion<TTransitions> = ''> {
+interface StateMachineParams<
+  TTransitions extends readonly Transition[],
+  Data,
+  InitState extends StateFromUnion<TTransitions> = '',
+  Plugins extends [] | [HistoryPluginInstance] = []
+> {
   readonly init: InitState
   readonly transitions: readonly [...TTransitions]
   readonly data?: Data
@@ -68,12 +74,14 @@ interface StateMachineParams<TTransitions extends readonly Transition[], Data, I
       ExtraTransitionLifeCycel<TTransitions> &
       InitTransitionLifeCycle<InitState>
   >
+  readonly plugins?: Plugins
 }
 
-class StateMachineImpl<TTransitions extends readonly Transition[], Data> implements StateMachineImplInterface<TTransitions, Data> {
+class StateMachineImpl<TTransitions extends readonly Transition[], Data, Plugins extends [] | [HistoryPluginInstance] = []>
+  implements StateMachineImplInterface<TTransitions, Data>
+{
   state: StateUnion<TTransitions> | 'none' = 'none'
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   data!: StateMachineParams<TTransitions, Data>['data']
 
@@ -103,8 +111,10 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     onAfterTransition: [],
   }
 
+  private historyPluginInstance?: HistoryPluginInstance
+
   // 这里的class的type是假的 这个class的实现对内可以认为没有type 对外有type
-  constructor(params: StateMachineParams<TTransitions, Data>) {
+  constructor(params: StateMachineParams<TTransitions, Data, '', Plugins>) {
     this.transitions = [...params.transitions]
     // De-duplication
     this.transition_names = Array.from(new Set(this.transitions.map((transit) => transit.name))) as TransitionTupleDeduplicate<TTransitions>
@@ -144,6 +154,53 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     }
     // sync task
     this.init(params.init)
+    /** Plugin related code start */
+    if (params.plugins) {
+      // dont know if this is the best practice or not.
+      params.plugins.forEach((plugin) => {
+        if (plugin instanceof StateMachineHistory) {
+          this.historyPluginInstance = plugin
+          if (this.hasOwnProperty('historyBack')) {
+            throw new Error('historyBack key esists！')
+          }
+          // eslint-disable-next-line @typescript-eslint/no-this-alias
+          const that = this
+          Object.defineProperty(this, 'historyBack', {
+            value() {
+              if (that.historyPluginInstance?.canHistoryBack) {
+                const preTransition = that.historyPluginInstance.history[that.historyPluginInstance.history.length - 2]
+                const transitionResult = that.fireTransition(preTransition.transition, preTransition.from, preTransition.to)
+                // traversing history should remove the last two element if transition successed.
+                if (transitionResult instanceof Promise) {
+                  transitionResult.then((val) => {
+                    that.historyPluginInstance?.history.pop()
+                    that.historyPluginInstance?.history.pop()
+                    return val
+                  })
+                } else if (transitionResult !== false) {
+                  that.historyPluginInstance?.history.pop()
+                  that.historyPluginInstance?.history.pop()
+                }
+                return transitionResult
+              }
+              return false
+            },
+          })
+          Object.defineProperty(this, 'history', {
+            get() {
+              return that.historyPluginInstance?.history
+            },
+          })
+          Object.defineProperty(this, 'canHistoryBack', {
+            get() {
+              return that.historyPluginInstance?.canHistoryBack
+            },
+          })
+          Object.defineProperty(this, 'clearHistory', { value: that.historyPluginInstance?.clearHistory.bind(that.historyPluginInstance) })
+        }
+      })
+    }
+    /** Plugin related code end */
   }
 
   get allStates() {
@@ -286,6 +343,16 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
   private onAfterTransition(...payloads: LifeCycleMethodPayload<TTransitions>) {
     const [transition, from, to, ...args] = payloads
 
+    /** Plugin related code start */
+    if (this.historyPluginInstance) {
+      this.historyPluginInstance.addHistory({
+        from: from as string,
+        to: to as string,
+        transition,
+      })
+    }
+    /** Plugin related code end */
+
     return this.life_cycles?.onAfterTransition?.(
       {
         event: camelize.prepended('on', transition),
@@ -338,12 +405,10 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
       [
         [this.onBeforeTransition.bind(this), [transition, from, to, ...args]],
         [this.fireListenerCallback.bind(this), ['onBeforeTransition', [transition, from, to, ...args]]],
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         [this[camelize.prepended('onBefore', transition)].bind(this), [transition, from, to, ...args]],
         [this.onLeaveState.bind(this), [transition, from, to, ...args]],
         [this.fireListenerCallback.bind(this), ['onLeaveState', [transition, from, to, ...args]]],
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         [this[camelize.prepended('onLeave', this.state)].bind(this), [transition, from, to, ...args]],
         // because from can be a array of string, so use this.state instead of from
@@ -363,18 +428,14 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     // and for the same reason, we can't use pipe funcion.
     this.onEnterState(transition, from, to, ...args)
     this.fireListenerCallback('onEnterState', [transition, from, to, ...args])
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('onEnter', to)](transition, from, to, ...args)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('on', to)](transition, from, to, ...args)
     this.onAfterTransition(transition, from, to, ...args)
     this.fireListenerCallback('onAfterTransition', [transition, from, to, ...args])
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('onAfter', transition)](transition, from, to, ...args)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('on', transition)](transition, from, to, ...args)
     this.pending = false
@@ -413,18 +474,14 @@ class StateMachineImpl<TTransitions extends readonly Transition[], Data> impleme
     const params = ['init', initialState, initState] as const
     this.onEnterState(...params)
     this.fireListenerCallback('onEnterState', [...params])
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('onEnter', initState)](...params)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this[camelize.prepended('on', initState)](...params)
     this.onAfterTransition(...params)
     this.fireListenerCallback('onAfterTransition', [...params])
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.onAfterInit(...params)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.onInit(...params)
     this.pending = false
@@ -435,10 +492,11 @@ export interface StateMachineConstructor {
   new <
     TTransitions extends readonly Transition[],
     Data extends Record<PropertyKey, unknown>,
-    InitState extends StateFromUnion<TTransitions>
+    InitState extends StateFromUnion<TTransitions>,
+    Plugins extends [HistoryPluginInstance] | [] = []
   >(
-    params: StateMachineParams<TTransitions, Data, InitState>
-  ): TransitionMethods<TTransitions> & StateMachineImpl<TTransitions, Data>
+    params: StateMachineParams<TTransitions, Data, InitState, Plugins>
+  ): TransitionMethods<TTransitions> & StateMachineImpl<TTransitions, Data> & PluginExtendsMethods<TTransitions, Plugins>
 }
 
 export const StateMachine = StateMachineImpl as StateMachineConstructor
