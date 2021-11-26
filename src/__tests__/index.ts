@@ -1,6 +1,7 @@
 import { StateMachine } from '../state-machine'
 import { Exception } from '../utils/exception'
 import { StateMachineHistory } from '../plugins'
+import { observer } from '../observer'
 
 function wait(num: number, returnVal: unknown) {
   return new Promise((resolve) =>

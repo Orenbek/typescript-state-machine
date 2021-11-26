@@ -2,35 +2,45 @@ import { StateMachineConstructor } from './state-machine'
 import { ListenersLifeCycleEventType } from './life-cycle'
 
 export function observer<T extends InstanceType<StateMachineConstructor>>(instance: T) {
-  const listeners: Array<{ type: ListenersLifeCycleEventType; callback: Parameters<T['addEventListener']>[1] }> = []
+  // 这个函数在外部被调用时的type是正确的，但是函数内部判断不出来T的类型。不用纠结，直接ignore即可，应该是TypeScript问题。
+  // 只关注外部用户的使用即可。
+  // @ts-ignore
+  type CallbackType = Parameters<T['addEventListener']>[1]
+  const listeners: Array<{ type: ListenersLifeCycleEventType; callback: CallbackType }> = []
   return {
-    onBeforeTransition(callback: Parameters<T['addEventListener']>[1]) {
+    onBeforeTransition(callback: CallbackType) {
+      // @ts-ignore
       instance.addEventListener('onBeforeTransition', callback)
       listeners.push({ type: 'onBeforeTransition', callback })
       return this
     },
-    onLeaveState(callback: Parameters<T['addEventListener']>[1]) {
+    onLeaveState(callback: CallbackType) {
+      // @ts-ignore
       instance.addEventListener('onLeaveState', callback)
       listeners.push({ type: 'onLeaveState', callback })
       return this
     },
-    onTransition(callback: Parameters<T['addEventListener']>[1]) {
+    onTransition(callback: CallbackType) {
+      // @ts-ignore
       instance.addEventListener('onTransition', callback)
       listeners.push({ type: 'onTransition', callback })
       return this
     },
-    onEnterState(callback: Parameters<T['addEventListener']>[1]) {
+    onEnterState(callback: CallbackType) {
+      // @ts-ignore
       instance.addEventListener('onEnterState', callback)
       listeners.push({ type: 'onEnterState', callback })
       return this
     },
-    onAfterTransition(callback: Parameters<T['addEventListener']>[1]) {
+    onAfterTransition(callback: CallbackType) {
+      // @ts-ignore
       instance.addEventListener('onAfterTransition', callback)
       listeners.push({ type: 'onAfterTransition', callback })
       return this
     },
     removeAllListeners() {
       listeners.forEach((listener) => {
+        // @ts-ignore
         instance.removeEventListener(listener.type, listener.callback)
       })
       return this

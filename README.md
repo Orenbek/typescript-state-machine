@@ -100,8 +100,9 @@ Read more about
 - [Asynchronous Transitions](docs/async-transitions.md)
 - [Initialization](docs/initialization.md)
 - [Error Handling](docs/error-handling.md)
-<!-- - [State History](docs/state-history.md)
-- [Visualization](docs/visualization.md)
+- [State History](docs/state-history.md)
+- [Observer Function](docs/observer.md)
+<!-- - [Visualization](docs/visualization.md)
 - [State Machine Factory](docs/state-machine-factory.md) -->
 
 # License

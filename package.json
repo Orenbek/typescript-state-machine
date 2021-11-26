@@ -1,8 +1,8 @@
 {
   "name": "typescript-state-machine",
   "version": "1.0.0",
-  "description": "well typed state machine library",
-  "main": "index.js",
+  "description": "well typed and tested state machine library",
+  "main": "lib/state-machine.js",
   "scripts": {
     "test": "jest",
     "tsnode": "npx ts-node --project ./tsconfig.json ./src/state-machine.ts",
@@ -10,10 +10,16 @@
     "preinstall": "npx only-allow pnpm"
   },
   "keywords": [
-    "state-machine"
+    "state-machine",
+    "typescript",
+    "finite-state-machine"
   ],
   "author": "Orenbek",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Orenbek/typescript-state-machine.git"
+  },
   "devDependencies": {
     "@babel/cli": "^7.16.0",
     "@babel/core": "^7.16.0",
