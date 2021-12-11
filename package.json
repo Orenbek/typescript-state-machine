@@ -1,6 +1,6 @@
 {
   "name": "fsm-typescript",
-  "version": "1.1.0-0",
+  "version": "1.1.0-2",
   "description": "well typed and tested state machine library",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -18,7 +18,6 @@
     "tsnode": "npx ts-node --project ./tsconfig.json ./src/state-machine.ts",
     "lint": "eslint 'src/**/*.{js,ts}' --fix",
     "build": "npm run pre-build && rollup -c && tsc --project tsconfig.production.json",
-    "preinstall": "npx only-allow pnpm",
     "pre-build": "rm -rf umd lib es modern types",
     "release": "standard-version"
   },
@@ -40,10 +39,8 @@
   "devDependencies": {
     "@babel/cli": "^7.16.0",
     "@babel/core": "^7.16.0",
-    "@babel/plugin-transform-runtime": "^7.16.4",
     "@babel/preset-env": "^7.16.0",
     "@babel/preset-typescript": "^7.16.0",
-    "@babel/runtime": "^7.16.3",
     "@rollup/plugin-babel": "^5.3.0",
     "@rollup/plugin-typescript": "^8.3.0",
     "@types/jest": "^27.0.2",
@@ -75,5 +72,8 @@
       "pnpm run lint",
       "git add"
     ]
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.16.3"
   }
 }

@@ -28,6 +28,7 @@ function getBabelConfig(module) {
   }
   return {
     filename: 'index.js',
+    allowAllFormats: true,
     presets: [
       [
         '@babel/preset-env',
@@ -38,14 +39,12 @@ function getBabelConfig(module) {
         },
       ],
     ],
-    plugins: [['@babel/plugin-transform-runtime', { corejs: 3, proposals: true }]],
-    ...(module === 'umd' ? { allowAllFormats: true } : null),
   }
 }
 // read more information about babel rollup config on https://github.com/rollup/plugins/tree/master/packages/babel
 export default defineConfig({
   input: 'src/index.ts',
-  external: [...Object.keys(pkg.peerDependencies || {}), /__tests__/, /@babel\/runtime/],
+  external: [...Object.keys(pkg.peerDependencies || {})],
   output: [
     {
       dir: 'umd',
@@ -59,7 +58,7 @@ export default defineConfig({
       dir: 'lib',
       sourcemap: true,
       generatedCode: 'es5', // This will not transpile any user code but only change the code Rollup uses in wrappers and helpers.
-      format: 'cjs',
+      format: 'esm',
       banner,
       plugins: [getBabelOutputPlugin(getBabelConfig('cjs'))],
     },
