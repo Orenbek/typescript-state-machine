@@ -1,6 +1,6 @@
 {
   "name": "fsm-typescript",
-  "version": "1.1.0-2",
+  "version": "1.1.0",
   "description": "well typed and tested state machine library",
   "main": "lib/index.js",
   "module": "es/index.js",
