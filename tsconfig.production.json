@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext", "ES2015", "dom"],
+    "strict": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "rootDir": "src",
+    "baseUrl": ".",
+    "allowJs": true,
+    "declaration": true,
+    "declarationDir": "types",
+    "emitDeclarationOnly": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "./src/__tests__/"]
+}

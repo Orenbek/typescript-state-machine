@@ -8,7 +8,7 @@ module.exports = {
     '@typescript-eslint/no-use-before-define': ['error', { ignoreTypeReferences: true }],
     'no-prototype-builtins': 'off',
     'import/prefer-default-export': 'off',
-    '@typescript-eslint/ban-ts-comment': 'warn'
+    '@typescript-eslint/ban-ts-comment': 'warn',
   },
   settings: {
     'import/resolver': {
@@ -21,4 +21,10 @@ module.exports = {
   parserOptions: {
     project: './tsconfig.json',
   },
+  overrides: [
+    {
+      files: ['*.js'],
+      parser: 'espree',
+    },
+  ],
 }
