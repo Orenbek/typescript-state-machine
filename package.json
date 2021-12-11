@@ -1,6 +1,6 @@
 {
-  "name": "ts-state-machine",
-  "version": "1.0.0",
+  "name": "fsm-typescript",
+  "version": "1.1.0-0",
   "description": "well typed and tested state machine library",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -23,7 +23,8 @@
     "release": "standard-version"
   },
   "keywords": [
-    "ts-state-machine",
+    "fsm-typescript",
+    "fsm",
     "typescript-state-machine",
     "state-machine",
     "finite-state-machine",
