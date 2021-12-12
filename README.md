@@ -1,12 +1,14 @@
 # Typescript State Machine
 
-A library for finite state machines.
+A strongly typed library for finite state machines.
 
 ![matter state machine](examples/matter.png)
 
 # Installation
 
-will release npm package soon.
+```shell
+npm install fsm-typescript --save-dev
+```
 
 # Usage
 
